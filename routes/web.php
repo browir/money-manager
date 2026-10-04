@@ -6,6 +6,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TransactionController;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -39,33 +40,20 @@ Route::middleware('auth')->group(function () {
     Route::put('/pengaturan/sandi', [SettingsController::class, 'updatePassword'])->name('settings.password');
 });
 
-// SEMENTARA: diagnosis koneksi database di Vercel. Hapus setelah beres.
-Route::get('/_diag/{token}', function (string $token) {
-    abort_unless(hash_equals(hash_hmac('sha256', 'diag', (string) config('app.key')), $token), 404);
+/*
+ * Migrasi + akun pemilik di produksi, dipicu manual setelah deploy:
+ *   https://<domain>/_ops/migrate/<token>
+ * Token = HMAC-SHA256("ops-migrate", APP_KEY), jadi hanya pemegang APP_KEY yang bisa memanggilnya.
+ * (Build Vercel tidak menerima env dashboard, jadi migrasi saat build tidak bisa diandalkan.)
+ */
+Route::get('/_ops/migrate/{token}', function (string $token) {
+    abort_unless(hash_equals(hash_hmac('sha256', 'ops-migrate', (string) config('app.key')), $token), 404);
 
-    $out = [
-        'php' => PHP_VERSION,
-        'pdo_pgsql' => extension_loaded('pdo_pgsql'),
-        'pdo_drivers' => PDO::getAvailableDrivers(),
-        'db_default' => config('database.default'),
-        'db_url_set' => (bool) env('DB_URL'),
-        'db_url_scheme_host_port' => ($u = parse_url((string) env('DB_URL'))) ? (($u['scheme'] ?? '?').'://'.($u['host'] ?? '?').':'.($u['port'] ?? '?').' user='.($u['user'] ?? '?')) : null,
-        'sslmode' => config('database.connections.pgsql.sslmode'),
-    ];
+    Artisan::call('migrate', ['--force' => true]);
+    $output = Artisan::output();
 
-    try {
-        \Illuminate\Support\Facades\DB::connection('pgsql')->getPdo();
-        $out['connect'] = 'ok';
-        $out['tables'] = collect(\Illuminate\Support\Facades\DB::connection('pgsql')->select("select tablename from pg_tables where schemaname = 'public' order by 1"))->pluck('tablename');
-        $out['users'] = \Illuminate\Support\Facades\DB::connection('pgsql')->table('users')->count();
-    } catch (\Throwable $e) {
-        $pass = parse_url((string) env('DB_URL'), PHP_URL_PASS);
-        $msg = $e->getMessage();
-        if ($pass) {
-            $msg = str_replace([$pass, rawurldecode($pass)], '***', $msg);
-        }
-        $out['error'] = get_class($e).': '.mb_substr($msg, 0, 600);
-    }
+    Artisan::call('db:seed', ['--force' => true]);
+    $output .= Artisan::output();
 
-    return response()->json($out);
-});
+    return response(trim($output) ?: 'Tidak ada perubahan.', 200, ['Content-Type' => 'text/plain; charset=utf-8']);
+})->middleware('throttle:5,1');
