@@ -47,11 +47,11 @@ function text() {
 </script>
 
 <template>
-    <span v-if="splitCurrency" class="whitespace-nowrap"
+    <span v-if="splitCurrency" class="amount whitespace-nowrap"
         ><span class="mr-[0.18em] align-[0.42em] text-[0.42em] font-medium tracking-normal text-muted">{{
             text().match(/^[^\d]*/)[0].trim()
         }}</span
         >{{ text().replace(/^[^\d]*/, '') }}</span
     >
-    <span v-else class="whitespace-nowrap">{{ text() }}</span>
+    <span v-else class="amount whitespace-nowrap">{{ text() }}</span>
 </template>

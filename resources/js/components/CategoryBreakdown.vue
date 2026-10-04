@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
 import { useLedger } from '@/composables/useLedger';
@@ -11,7 +11,11 @@ import { color } from '@/lib/palette';
 const props = defineProps({
     month: { type: String, required: true },
     items: { type: Array, required: true }, // [{ category_id, total, count }]
+    /** Tampilkan n kategori teratas dulu; 0 = semua. */
+    limit: { type: Number, default: 0 },
 });
+
+const expanded = ref(false);
 
 const { categoryById } = useLedger();
 const total = computed(() => props.items.reduce((s, i) => s + i.total, 0));
@@ -36,6 +40,9 @@ const segments = computed(() => {
     return rest > 0 ? [...top, { category_id: 'rest', share: rest, color: 'slate' }] : top;
 });
 
+const visibleRows = computed(() => (props.limit && !expanded.value ? rows.value.slice(0, props.limit) : rows.value));
+const hiddenCount = computed(() => rows.value.length - visibleRows.value.length);
+
 const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.round(share * 100)) + '%';
 </script>
 
@@ -43,7 +50,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
     <section>
         <div class="mb-4 flex items-baseline justify-between">
             <h2 class="text-[15px] font-medium">Per kategori</h2>
-            <span class="text-[13px] text-muted tnum">{{ rupiah(total) }}</span>
+            <span class="amount text-[13px] text-muted tnum">{{ rupiah(total) }}</span>
         </div>
 
         <template v-if="rows.length">
@@ -57,7 +64,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
             </div>
 
             <ul class="-mx-2 flex flex-col">
-                <li v-for="row in rows" :key="row.category_id ?? 'none'">
+                <li v-for="row in visibleRows" :key="row.category_id ?? 'none'">
                     <Link
                         :href="route('transactions.index', { month, category: row.category_id ?? undefined, type: 'expense' })"
                         class="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-sunken/70"
@@ -68,12 +75,20 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                             <span class="block text-[12px] text-muted">{{ row.count }} transaksi</span>
                         </span>
                         <span class="text-right">
-                            <span class="block text-[14px] font-medium tnum">{{ rupiah(row.total) }}</span>
+                            <span class="amount block text-[14px] font-medium tnum">{{ rupiah(row.total) }}</span>
                             <span class="block text-[12px] text-muted tnum">{{ percent(row.share) }}</span>
                         </span>
                     </Link>
                 </li>
             </ul>
+            <button
+                v-if="limit && rows.length > limit"
+                type="button"
+                class="mt-1 w-full rounded-xl py-2.5 text-[13px] font-medium text-accent-text transition-colors hover:bg-sunken/70"
+                @click="expanded = !expanded"
+            >
+                {{ expanded ? 'Ringkas' : `Tampilkan ${hiddenCount} lainnya` }}
+            </button>
         </template>
         <p v-else class="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
             Belum ada pengeluaran bulan ini.

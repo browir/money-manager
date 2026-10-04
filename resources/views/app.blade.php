@@ -19,6 +19,7 @@
             try { pref = localStorage.getItem('sisih:theme') || 'system'; } catch (e) {}
             var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+            try { if (localStorage.getItem('sisih:private') === '1') document.documentElement.setAttribute('data-private', ''); } catch (e) {}
         })();
     </script>
 

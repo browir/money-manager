@@ -110,6 +110,8 @@
     html {
         -webkit-tap-highlight-color: transparent;
         text-size-adjust: 100%;
+        /* Tarik-untuk-segarkan ditangani aplikasi sendiri. */
+        overscroll-behavior-y: none;
     }
 
     body {
@@ -206,6 +208,15 @@
     }
 }
 
+/* Mode privasi: nominal diburamkan. */
+.amount {
+    transition: filter 0.25s ease;
+}
+[data-private] .amount {
+    filter: blur(0.34em);
+    user-select: none;
+}
+
 /* ---------------------------------------------------------------
    Gerak
    --------------------------------------------------------------- */
@@ -217,7 +228,9 @@
 }
 
 .page-enter {
-    animation: rise 0.32s var(--ease-out-soft) both;
+    /* "backwards", bukan "both": animasi transform yang tetap menempel membuat
+       elemen position:fixed di dalam halaman ikut menempel ke halaman, bukan layar. */
+    animation: rise 0.32s var(--ease-out-soft) backwards;
 }
 
 .list-enter-active,

@@ -29,6 +29,7 @@ const shortcuts = [
     ['Ctrl K', 'Perintah & pencarian'],
     ['/', 'Cari di halaman transaksi'],
     ['← →', 'Ganti bulan'],
+    ['H', 'Sembunyikan / tampilkan nominal'],
     ['G lalu B / T / A', 'Ke Beranda / Transaksi / Akun'],
     ['Enter', 'Simpan form'],
     ['Esc', 'Tutup'],

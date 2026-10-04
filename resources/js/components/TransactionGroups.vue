@@ -6,6 +6,8 @@ import { dayLabel } from '@/lib/dates';
 
 const props = defineProps({
     transactions: { type: Array, required: true },
+    /** Judul tanggal menempel saat digulir (HP). Matikan bila ada bilah tetap lain di atas. */
+    sticky: { type: Boolean, default: true },
 });
 
 /** Kelompokkan per tanggal (data sudah terurut dari server). */
@@ -27,7 +29,8 @@ const groups = computed(() => {
     <div class="flex flex-col gap-5">
         <section v-for="group in groups" :key="group.date">
             <header
-                class="sticky top-0 z-10 -mx-4 flex items-baseline justify-between bg-paper/90 px-4 py-2 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-2 md:backdrop-blur-none"
+                class="flex items-baseline justify-between py-2 md:px-2"
+                :class="sticky && 'sticky top-0 z-10 -mx-4 bg-paper/90 px-4 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:backdrop-blur-none'"
             >
                 <h3 class="text-[13px] font-medium text-ink-2 first-letter:uppercase">{{ dayLabel(group.date) }}</h3>
                 <Money v-if="group.net" :value="group.net" :sign="true" class="text-[13px] text-muted tnum" />
