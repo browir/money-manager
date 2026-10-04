@@ -49,11 +49,18 @@ Route::middleware('auth')->group(function () {
 Route::get('/_ops/migrate/{token}', function (string $token) {
     abort_unless(hash_equals(hash_hmac('sha256', 'ops-migrate', (string) config('app.key')), $token), 404);
 
-    Artisan::call('migrate', ['--force' => true]);
-    $output = Artisan::output();
+    $output = '';
 
-    Artisan::call('db:seed', ['--force' => true]);
-    $output .= Artisan::output();
+    try {
+        Artisan::call('migrate', ['--force' => true]);
+        $output .= Artisan::output();
+
+        Artisan::call('db:seed', ['--force' => true]);
+        $output .= Artisan::output();
+    } catch (Throwable $e) {
+        return response($output."
+GAGAL: ".get_class($e).': '.$e->getMessage(), 500, ['Content-Type' => 'text/plain; charset=utf-8']);
+    }
 
     return response(trim($output) ?: 'Tidak ada perubahan.', 200, ['Content-Type' => 'text/plain; charset=utf-8']);
-})->middleware('throttle:5,1');
+});
