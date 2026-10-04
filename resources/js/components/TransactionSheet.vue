@@ -1,11 +1,12 @@
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
-import { ArrowRight, CalendarDays, Trash2, X } from 'lucide-vue-next';
+import { ArrowRight, ArrowRightLeft, CalendarDays, Trash2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
+import { celebrate } from '@/composables/useCelebration';
 import { closeQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { addDays, dayLabel, today } from '@/lib/dates';
@@ -14,7 +15,7 @@ import { digits, evaluate, formatExpr, hasOperator, pressKey } from '@/lib/money
 import { color, tint } from '@/lib/palette';
 
 const state = useQuickAdd();
-const { activeAccounts, categories } = useLedger();
+const { activeAccounts, categories, accountById, categoryById } = useLedger();
 
 const TYPES = [
     { value: 'expense', label: 'Pengeluaran' },
@@ -128,12 +129,14 @@ function submit() {
         return;
     }
 
+    // Rekam detail sekarang: form direset begitu sheet ditutup.
+    const summary = describe();
     const options = {
         preserveScroll: true,
         onSuccess: () => {
-            navigator.vibrate?.(10);
             remember({ account: form.account_id });
             closeQuickAdd();
+            celebrate(summary);
         },
     };
     const payload = form.transform((data) => ({ ...data, amount: amount.value }));
@@ -143,6 +146,31 @@ function submit() {
     } else {
         payload.post(route('transactions.store'), options);
     }
+}
+
+const LABELS = { expense: 'Pengeluaran tercatat', income: 'Pemasukan tercatat', transfer: 'Transfer tercatat' };
+
+function describe() {
+    const from = accountById.value[form.account_id]?.name;
+    if (form.type === 'transfer') {
+        return {
+            type: 'transfer',
+            amount: amount.value,
+            label: editing.value ? 'Perubahan tersimpan' : LABELS.transfer,
+            subtitle: `${from} → ${accountById.value[form.to_account_id]?.name ?? '?'}`,
+            icon: ArrowRightLeft,
+            color: 'slate',
+        };
+    }
+    const category = categoryById.value[form.category_id];
+    return {
+        type: form.type,
+        amount: amount.value,
+        label: editing.value ? 'Perubahan tersimpan' : LABELS[form.type],
+        subtitle: [category?.name ?? 'Tanpa kategori', from].filter(Boolean).join(' · '),
+        icon: categoryIcon(category?.icon),
+        color: category?.color ?? 'slate',
+    };
 }
 
 function destroy() {

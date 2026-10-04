@@ -39,9 +39,8 @@ class TransactionController extends Controller
     {
         $transaction = $request->user()->transactions()->create($this->validated($request));
 
-        Inertia::flash('toast', [
-            'message' => $this->label($transaction).' tersimpan',
-        ]);
+        // Konfirmasi visual (animasi) ditangani di klien; cukup kirim id untuk disorot.
+        Inertia::flash('saved', $transaction->id);
 
         return back();
     }
@@ -51,7 +50,7 @@ class TransactionController extends Controller
         $this->ensureOwned($transaction);
         $transaction->update($this->validated($request));
 
-        Inertia::flash('toast', ['message' => 'Perubahan tersimpan']);
+        Inertia::flash('saved', $transaction->id);
 
         return back();
     }

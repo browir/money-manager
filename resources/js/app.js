@@ -4,6 +4,7 @@ import { createInertiaApp, router } from '@inertiajs/vue3';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from 'ziggy-js';
 import AppLayout from './layouts/AppLayout.vue';
+import { highlightTransaction } from './composables/useCelebration';
 import { pushToast } from './composables/useToast';
 
 const pages = import.meta.glob('./pages/**/*.vue', { eager: true });
@@ -26,8 +27,9 @@ createInertiaApp({
 
 // Pesan sekali-tampil dari server (Inertia::flash('toast', ...)).
 router.on('flash', (event) => {
-    const toast = event.detail.flash?.toast;
+    const { toast, saved } = event.detail.flash ?? {};
     if (toast) pushToast(toast);
+    if (saved) highlightTransaction(saved);
 });
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

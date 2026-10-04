@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
 import Money from '@/components/ui/Money.vue';
+import { useHighlighted } from '@/composables/useCelebration';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { categoryIcon } from '@/lib/icons';
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const { accountById, categoryById } = useLedger();
+const highlighted = useHighlighted();
 const t = computed(() => props.transaction);
 const category = computed(() => categoryById.value[t.value.category_id]);
 const account = computed(() => accountById.value[t.value.account_id]);
@@ -114,6 +116,7 @@ function open() {
             role="button"
             tabindex="0"
             class="group relative flex touch-pan-y items-center gap-3 bg-paper py-3 outline-none select-none focus-visible:bg-sunken md:rounded-xl md:px-2 md:hover:bg-sunken/70"
+            :class="highlighted === t.id && 'row-flash'"
             :style="{
                 transform: offset ? `translateX(${offset}px)` : undefined,
                 transition: animating ? 'transform 0.32s var(--ease-sheet)' : undefined,
@@ -159,3 +162,21 @@ function open() {
         </div>
     </div>
 </template>
+
+<style scoped>
+/* Sorotan baris yang baru disimpan: menyala lembut lalu memudar. */
+.row-flash {
+    animation: row-flash 2s 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes row-flash {
+    0%,
+    25% {
+        background-color: var(--accent-soft);
+        box-shadow: inset 3px 0 0 var(--accent-text);
+    }
+    100% {
+        background-color: var(--paper);
+        box-shadow: inset 3px 0 0 transparent;
+    }
+}
+</style>

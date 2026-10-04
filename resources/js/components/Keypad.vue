@@ -70,10 +70,15 @@ const rows = [
             type="button"
             class="col-span-2 inline-flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent text-[15px] font-semibold text-accent-fg transition active:scale-[0.97] disabled:opacity-40"
             :disabled="!canSubmit || processing"
+            :class="processing && 'disabled:opacity-80'"
             @click="emit('submit')"
         >
-            <Check class="size-[18px]" :stroke-width="2.4" />
-            {{ submitLabel }}
+            <svg v-if="processing" class="size-[18px] animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+            </svg>
+            <Check v-else class="size-[18px]" :stroke-width="2.4" />
+            {{ processing ? 'Menyimpan…' : submitLabel }}
         </button>
     </div>
 </template>

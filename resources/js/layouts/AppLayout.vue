@@ -4,6 +4,7 @@ import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Search, Setting
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
+import SaveCelebration from '@/components/SaveCelebration.vue';
 import TransactionSheet from '@/components/TransactionSheet.vue';
 import Toaster from '@/components/ui/Toaster.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
@@ -136,5 +137,6 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
         <TransactionSheet />
         <CommandPalette v-model:open="paletteOpen" />
         <Toaster />
+        <SaveCelebration />
     </div>
 </template>
