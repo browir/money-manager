@@ -38,3 +38,34 @@ Route::middleware('auth')->group(function () {
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::put('/pengaturan/sandi', [SettingsController::class, 'updatePassword'])->name('settings.password');
 });
+
+// SEMENTARA: diagnosis koneksi database di Vercel. Hapus setelah beres.
+Route::get('/_diag/{token}', function (string $token) {
+    abort_unless(hash_equals(hash_hmac('sha256', 'diag', (string) config('app.key')), $token), 404);
+
+    $out = [
+        'php' => PHP_VERSION,
+        'pdo_pgsql' => extension_loaded('pdo_pgsql'),
+        'pdo_drivers' => PDO::getAvailableDrivers(),
+        'db_default' => config('database.default'),
+        'db_url_set' => (bool) env('DB_URL'),
+        'db_url_scheme_host_port' => ($u = parse_url((string) env('DB_URL'))) ? (($u['scheme'] ?? '?').'://'.($u['host'] ?? '?').':'.($u['port'] ?? '?').' user='.($u['user'] ?? '?')) : null,
+        'sslmode' => config('database.connections.pgsql.sslmode'),
+    ];
+
+    try {
+        \Illuminate\Support\Facades\DB::connection('pgsql')->getPdo();
+        $out['connect'] = 'ok';
+        $out['tables'] = collect(\Illuminate\Support\Facades\DB::connection('pgsql')->select("select tablename from pg_tables where schemaname = 'public' order by 1"))->pluck('tablename');
+        $out['users'] = \Illuminate\Support\Facades\DB::connection('pgsql')->table('users')->count();
+    } catch (\Throwable $e) {
+        $pass = parse_url((string) env('DB_URL'), PHP_URL_PASS);
+        $msg = $e->getMessage();
+        if ($pass) {
+            $msg = str_replace([$pass, rawurldecode($pass)], '***', $msg);
+        }
+        $out['error'] = get_class($e).': '.mb_substr($msg, 0, 600);
+    }
+
+    return response()->json($out);
+});
