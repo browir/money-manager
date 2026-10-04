@@ -1,6 +1,6 @@
 // Service worker minimal: aset build (nama berhash) disimpan permanen,
 // halaman & data selalu dari jaringan agar angka tidak pernah basi.
-const CACHE = 'saku-assets-v1';
+const CACHE = 'sisih-assets-v1';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));

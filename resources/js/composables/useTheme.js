@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 
-const KEY = 'saku:theme';
+const KEY = 'sisih:theme';
 const media = typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
 function read() {

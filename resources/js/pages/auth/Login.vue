@@ -33,7 +33,7 @@ const ledger = [
                         <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                     </svg>
                 </span>
-                <span class="text-[17px] font-semibold tracking-tight">Saku</span>
+                <span class="text-[17px] font-semibold tracking-tight">Sisih</span>
             </div>
 
             <div>
@@ -70,7 +70,7 @@ const ledger = [
                             <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                         </svg>
                     </span>
-                    <span class="text-[19px] font-semibold tracking-tight">Saku</span>
+                    <span class="text-[19px] font-semibold tracking-tight">Sisih</span>
                 </div>
 
                 <h1 class="mb-1.5 text-[26px] font-semibold tracking-[-0.025em]">Masuk</h1>

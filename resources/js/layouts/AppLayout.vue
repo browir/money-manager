@@ -52,7 +52,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                         <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                     </svg>
                 </span>
-                <span class="text-[17px] font-semibold tracking-tight">Saku</span>
+                <span class="text-[17px] font-semibold tracking-tight">Sisih</span>
             </Link>
 
             <button type="button" class="btn btn-primary mb-3 w-full justify-between pr-3" @click="openQuickAdd()">

@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#111317" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Saku">
+    <meta name="apple-mobile-web-app-title" content="Sisih">
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -16,7 +16,7 @@
     <script>
         (function () {
             var pref = 'system';
-            try { pref = localStorage.getItem('saku:theme') || 'system'; } catch (e) {}
+            try { pref = localStorage.getItem('sisih:theme') || 'system'; } catch (e) {}
             var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.dataset.theme = dark ? 'dark' : 'light';
         })();

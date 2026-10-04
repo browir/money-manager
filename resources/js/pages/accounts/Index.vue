@@ -131,7 +131,7 @@ function destroy() {
             <div>
                 <label class="field-label">Saldo awal</label>
                 <AmountField v-model="form.initial_balance" />
-                <p class="mt-1.5 text-[12px] text-muted">Saldo sebelum transaksi pertama dicatat di Saku.</p>
+                <p class="mt-1.5 text-[12px] text-muted">Saldo sebelum transaksi pertama dicatat di Sisih.</p>
                 <p v-if="form.errors.initial_balance" class="field-error">{{ form.errors.initial_balance }}</p>
             </div>
             <label v-if="editing" class="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">

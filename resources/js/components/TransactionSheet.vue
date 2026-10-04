@@ -44,14 +44,14 @@ const targetAccounts = computed(() => activeAccounts.value.filter((a) => a.id !=
 
 function remembered(key) {
     try {
-        return JSON.parse(localStorage.getItem('saku:last') || '{}')[key];
+        return JSON.parse(localStorage.getItem('sisih:last') || '{}')[key];
     } catch {
         return undefined;
     }
 }
 function remember(values) {
     try {
-        localStorage.setItem('saku:last', JSON.stringify({ ...JSON.parse(localStorage.getItem('saku:last') || '{}'), ...values }));
+        localStorage.setItem('sisih:last', JSON.stringify({ ...JSON.parse(localStorage.getItem('sisih:last') || '{}'), ...values }));
     } catch {
         // abaikan
     }
