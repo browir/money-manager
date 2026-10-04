@@ -13,12 +13,19 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $email = env('OWNER_EMAIL');
+        $password = env('OWNER_PASSWORD');
+
+        // Tanpa nilai bawaan: jangan sampai produksi punya akun dengan sandi contoh.
+        if (! $email || ! $password) {
+            $this->command?->warn('OWNER_EMAIL / OWNER_PASSWORD belum diisi: akun pemilik tidak dibuat.');
+
+            return;
+        }
+
         $user = User::firstOrCreate(
-            ['email' => env('OWNER_EMAIL', 'saya@sisih.test')],
-            [
-                'name' => env('OWNER_NAME', 'Pemilik'),
-                'password' => env('OWNER_PASSWORD', 'rahasia123'),
-            ],
+            ['email' => $email],
+            ['name' => env('OWNER_NAME', 'Pemilik'), 'password' => $password],
         );
 
         if ($user->accounts()->doesntExist()) {
