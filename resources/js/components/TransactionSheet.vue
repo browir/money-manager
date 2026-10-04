@@ -4,6 +4,7 @@ import { ArrowRight, ArrowRightLeft, CalendarDays, Trash2, X } from 'lucide-vue-
 import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
+import CalendarPicker from '@/components/ui/CalendarPicker.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { celebrate } from '@/composables/useCelebration';
@@ -36,7 +37,15 @@ const amount = computed(() => evaluate(expr.value));
 const editing = computed(() => state.transaction);
 const shake = ref(false);
 const amountFocused = ref(false);
-const dateInput = ref(null);
+const showCalendar = ref(false);
+const calendarEl = ref(null);
+
+// Kalender bisa muncul di bawah lipatan sheet (di atas keypad): gulir agar terlihat.
+watch(showCalendar, async (open) => {
+    if (!open) return;
+    await new Promise((r) => setTimeout(r, 320));
+    calendarEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
 
 const typeCategories = computed(() =>
     categories.value.filter((c) => c.type === (form.type === 'income' ? 'income' : 'expense')),
@@ -61,6 +70,7 @@ function remember(values) {
 function reset() {
     const t = state.transaction;
     form.clearErrors();
+    showCalendar.value = false;
     if (t) {
         form.type = t.type;
         form.account_id = t.account_id;
@@ -180,12 +190,9 @@ function destroy() {
     });
 }
 
-function pickDate() {
-    try {
-        dateInput.value.showPicker();
-    } catch {
-        dateInput.value.focus();
-    }
+function setDate(iso) {
+    form.occurred_on = iso;
+    showCalendar.value = false;
 }
 
 const isCustomDate = computed(() => ![today(), addDays(today(), -1)].includes(form.occurred_on));
@@ -312,31 +319,34 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
         <section class="mb-5">
             <h3 class="eyebrow mb-2">Tanggal</h3>
             <div class="flex gap-2">
-                <button type="button" class="chip" :aria-pressed="form.occurred_on === today()" @click="form.occurred_on = today()">
+                <button type="button" class="chip" :aria-pressed="form.occurred_on === today()" @click="setDate(today())">
                     Hari ini
                 </button>
                 <button
                     type="button"
                     class="chip"
                     :aria-pressed="form.occurred_on === addDays(today(), -1)"
-                    @click="form.occurred_on = addDays(today(), -1)"
+                    @click="setDate(addDays(today(), -1))"
                 >
                     Kemarin
                 </button>
-                <button type="button" class="chip relative" :aria-pressed="isCustomDate" @click="pickDate">
+                <button
+                    type="button"
+                    class="chip"
+                    :aria-pressed="isCustomDate || showCalendar"
+                    :aria-expanded="showCalendar"
+                    @click="showCalendar = !showCalendar"
+                >
                     <CalendarDays class="size-4" :stroke-width="1.9" />
                     {{ isCustomDate ? dayLabel(form.occurred_on) : 'Pilih' }}
-                    <input
-                        ref="dateInput"
-                        v-model="form.occurred_on"
-                        type="date"
-                        :max="today()"
-                        tabindex="-1"
-                        class="pointer-events-none absolute inset-0 opacity-0"
-                        aria-label="Pilih tanggal"
-                    />
                 </button>
             </div>
+            <Transition name="calendar">
+                <div v-if="showCalendar" ref="calendarEl">
+                    <CalendarPicker v-model="form.occurred_on" class="mt-3" @picked="showCalendar = false" />
+                </div>
+            </Transition>
+            <p v-if="form.errors.occurred_on" class="field-error">{{ form.errors.occurred_on }}</p>
         </section>
 
         <!-- Catatan -->
@@ -382,6 +392,27 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
     80% {
         transform: translateX(6px);
     }
+}
+.calendar-enter-active,
+.calendar-leave-active {
+    display: grid;
+    transition:
+        grid-template-rows 0.3s var(--ease-out-soft),
+        opacity 0.2s ease;
+}
+.calendar-enter-active > *,
+.calendar-leave-active > * {
+    min-height: 0;
+    overflow: hidden;
+}
+.calendar-enter-from,
+.calendar-leave-to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}
+.calendar-enter-to,
+.calendar-leave-from {
+    grid-template-rows: 1fr;
 }
 @keyframes blink {
     50% {
