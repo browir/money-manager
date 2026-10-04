@@ -21,7 +21,7 @@ class DemoSeeder extends Seeder
 
         $user->accounts()->where('type', 'bank')->update(['initial_balance' => 12_500_000]);
         $user->accounts()->where('type', 'cash')->update(['initial_balance' => 650_000]);
-        $user->accounts()->where('type', 'ewallet')->update(['initial_balance' => 400_000]);
+        $user->accounts()->where('type', 'ewallet')->update(['initial_balance' => 2_400_000]);
 
         $notes = [
             'Makan & Minum' => ['Nasi padang', 'Kopi susu', 'Makan siang kantor', 'Martabak', 'Bakso', 'Sarapan bubur'],

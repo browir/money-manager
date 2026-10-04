@@ -1,11 +1,261 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
-@source '../**/*.js';
+@source '../**/*.{js,vue}';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+@custom-variant touch (@media (pointer: coarse));
+@custom-variant pointer (@media (hover: hover) and (pointer: fine));
+
+/* ---------------------------------------------------------------
+   Token warna: kertas & tinta, satu aksen biru tinta.
+   --------------------------------------------------------------- */
+:root {
+    --paper: #f6f5f1;
+    --surface: #ffffff;
+    --sunken: #eeece6;
+    --line: #e4e1d9;
+    --line-strong: #d2cec4;
+    --ink: #17191e;
+    --ink-2: #4d5058;
+    --muted: #82858e;
+    --accent: #1f3a5f;
+    --accent-hover: #172d4b;
+    --accent-fg: #ffffff;
+    --accent-soft: #e5ebf3;
+    --accent-text: #24497a;
+    --pos: #2e6b4c;
+    --neg: #a2452e;
+    --bar: #2f6db5;
+    --scrim: rgb(23 25 30 / 0.28);
+    --shadow: 0 1px 0 rgb(23 25 30 / 0.04), 0 12px 32px -12px rgb(23 25 30 / 0.18);
+
+    /* Warna identitas kategori (urutan tervalidasi, lihat lib/palette.js) */
+    --c-teal: #1a9a82;
+    --c-clay: #d0683a;
+    --c-ink: #2f6db5;
+    --c-sand: #c38a0a;
+    --c-plum: #7556b8;
+    --c-moss: #4e8f2e;
+    --c-rose: #d2557f;
+    --c-iris: #5b6cc4;
+    --c-slate: #7a7f89;
+
+    color-scheme: light;
+}
+
+[data-theme='dark'] {
+    --paper: #111317;
+    --surface: #181b21;
+    --sunken: #1f232a;
+    --line: #262a32;
+    --line-strong: #353a45;
+    --ink: #ecedef;
+    --ink-2: #b4b8c0;
+    --muted: #7d828c;
+    --accent: #a9c1e4;
+    --accent-hover: #bfd1ec;
+    --accent-fg: #0f1724;
+    --accent-soft: #1b2635;
+    --accent-text: #a9c1e4;
+    --pos: #7fc4a0;
+    --neg: #e3907a;
+    --bar: #4a86d0;
+    --scrim: rgb(0 0 0 / 0.55);
+    --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -12px rgb(0 0 0 / 0.6);
+
+    --c-teal: #22a58c;
+    --c-clay: #d9733f;
+    --c-ink: #4a86d0;
+    --c-sand: #b98a16;
+    --c-plum: #8c70d2;
+    --c-moss: #5e9e3a;
+    --c-rose: #db6a92;
+    --c-iris: #6f80d6;
+    --c-slate: #8b9099;
+
+    color-scheme: dark;
+}
+
+@theme inline {
+    --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+    --color-paper: var(--paper);
+    --color-surface: var(--surface);
+    --color-sunken: var(--sunken);
+    --color-line: var(--line);
+    --color-line-strong: var(--line-strong);
+    --color-ink: var(--ink);
+    --color-ink-2: var(--ink-2);
+    --color-muted: var(--muted);
+    --color-accent: var(--accent);
+    --color-accent-hover: var(--accent-hover);
+    --color-accent-fg: var(--accent-fg);
+    --color-accent-soft: var(--accent-soft);
+    --color-accent-text: var(--accent-text);
+    --color-pos: var(--pos);
+    --color-neg: var(--neg);
+    --color-bar: var(--bar);
+    --color-scrim: var(--scrim);
+
+    --shadow-float: var(--shadow);
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+    html {
+        -webkit-tap-highlight-color: transparent;
+        text-size-adjust: 100%;
+    }
+
+    body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-feature-settings: 'ss01', 'cv11';
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    ::selection {
+        background: var(--accent-soft);
+        color: var(--ink);
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--accent-text);
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    input[type='date']::-webkit-calendar-picker-indicator {
+        opacity: 0.5;
+    }
+}
+
+@utility tnum {
+    font-variant-numeric: tabular-nums;
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+@utility pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility pt-safe {
+    padding-top: env(safe-area-inset-top);
+}
+
+@layer components {
+    .btn {
+        @apply inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-[background-color,color,transform,opacity] duration-150 select-none active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50;
+    }
+    .btn-primary {
+        @apply bg-accent text-accent-fg hover:bg-accent-hover;
+    }
+    .btn-quiet {
+        @apply bg-sunken text-ink hover:bg-line;
+    }
+    .btn-ghost {
+        @apply text-ink-2 hover:bg-sunken hover:text-ink;
+    }
+    .btn-danger {
+        @apply text-neg hover:bg-sunken;
+    }
+    .icon-btn {
+        @apply inline-flex size-9 items-center justify-center rounded-xl text-ink-2 transition-colors hover:bg-sunken hover:text-ink active:scale-95;
+    }
+
+    .field {
+        @apply block h-11 w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink transition-colors outline-none placeholder:text-muted focus:border-accent-text;
+    }
+    .field-label {
+        @apply mb-1.5 block text-[13px] font-medium text-ink-2;
+    }
+    .field-error {
+        @apply mt-1.5 text-[13px] text-neg;
+    }
+
+    .chip {
+        @apply inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-3.5 text-sm whitespace-nowrap text-ink-2 transition-[background-color,border-color,color] duration-150 hover:border-line-strong hover:text-ink;
+    }
+    .chip[aria-pressed='true'] {
+        @apply border-accent bg-accent text-accent-fg;
+    }
+
+    .eyebrow {
+        @apply text-[12px] font-medium tracking-[0.08em] text-muted uppercase;
+    }
+
+    .hairline {
+        @apply border-line;
+    }
+}
+
+/* ---------------------------------------------------------------
+   Gerak
+   --------------------------------------------------------------- */
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+.page-enter {
+    animation: rise 0.32s var(--ease-out-soft) both;
+}
+
+.list-enter-active,
+.list-leave-active {
+    transition:
+        opacity 0.24s var(--ease-out-soft),
+        transform 0.24s var(--ease-out-soft);
+}
+.list-enter-from {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+.list-leave-to {
+    opacity: 0;
+    transform: translateX(-16px);
+}
+.list-leave-active {
+    position: absolute;
+    width: 100%;
+}
+.list-move {
+    transition: transform 0.28s var(--ease-out-soft);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
 }

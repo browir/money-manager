@@ -25,7 +25,7 @@ class DatabaseSeeder extends Seeder
             foreach ([
                 ['name' => 'Tunai', 'type' => 'cash', 'color' => 'moss'],
                 ['name' => 'Bank', 'type' => 'bank', 'color' => 'ink'],
-                ['name' => 'E-wallet', 'type' => 'ewallet', 'color' => 'sky'],
+                ['name' => 'E-wallet', 'type' => 'ewallet', 'color' => 'iris'],
             ] as $i => $account) {
                 $user->accounts()->create($account + ['sort' => $i, 'initial_balance' => 0]);
             }
@@ -35,13 +35,13 @@ class DatabaseSeeder extends Seeder
             $expense = [
                 ['Makan & Minum', 'utensils', 'clay'],
                 ['Belanja', 'shopping-bag', 'rose'],
-                ['Transportasi', 'car', 'sky'],
+                ['Transportasi', 'car', 'teal'],
                 ['Tagihan', 'receipt', 'ink'],
                 ['Rumah', 'house', 'sand'],
                 ['Kesehatan', 'heart-pulse', 'rose'],
                 ['Hiburan', 'clapperboard', 'plum'],
-                ['Pendidikan', 'graduation-cap', 'teal'],
-                ['Pulsa & Internet', 'wifi', 'sky'],
+                ['Pendidikan', 'graduation-cap', 'iris'],
+                ['Pulsa & Internet', 'wifi', 'iris'],
                 ['Donasi', 'hand-heart', 'moss'],
                 ['Lainnya', 'shapes', 'slate'],
             ];
