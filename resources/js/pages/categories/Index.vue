@@ -140,8 +140,12 @@ function destroy() {
                         v-for="(icon, name) in CATEGORY_ICONS"
                         :key="name"
                         type="button"
-                        class="grid aspect-square place-items-center rounded-xl text-ink-2 transition-[background-color,transform] hover:bg-sunken active:scale-90"
-                        :style="form.icon === name ? { background: tint(form.color, 18), color: color(form.color) } : undefined"
+                        class="flex h-11 items-center justify-center rounded-xl text-ink-2 transition-[background-color,transform] active:scale-90 pointer:hover:bg-sunken"
+                        :style="
+                            form.icon === name
+                                ? { background: tint(form.color, 18), color: color(form.color), boxShadow: `inset 0 0 0 1.5px ${color(form.color)}` }
+                                : undefined
+                        "
                         :aria-label="name"
                         :aria-pressed="form.icon === name"
                         @click="form.icon = name"

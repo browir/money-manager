@@ -181,7 +181,7 @@ useShortcuts({
                     <p class="text-[13px] font-medium text-(--hero-muted)">Total saldo</p>
                     <button
                         type="button"
-                        class="grid size-7 place-items-center rounded-full text-(--hero-muted) transition-colors hover:bg-white/10 hover:text-(--hero-fg)"
+                        class="flex size-7 items-center justify-center rounded-full text-(--hero-muted) transition-colors hover:bg-white/10 hover:text-(--hero-fg)"
                         :aria-pressed="hidden"
                         :aria-label="hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal'"
                         :title="hidden ? 'Tampilkan nominal (H)' : 'Sembunyikan nominal (H)'"

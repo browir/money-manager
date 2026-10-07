@@ -92,7 +92,7 @@ function onUp(e) {
                         <button
                             v-else
                             type="button"
-                            class="mx-auto grid size-10 place-items-center rounded-full text-[14px] tnum transition-[background-color,color,transform] duration-150 active:scale-90 disabled:pointer-events-none disabled:text-line-strong"
+                            class="mx-auto flex size-10 items-center justify-center rounded-full text-[14px] tnum transition-[background-color,color,transform] duration-150 active:scale-90 disabled:pointer-events-none disabled:text-line-strong"
                             :class="[
                                 iso === model
                                     ? 'bg-accent font-semibold text-accent-fg'

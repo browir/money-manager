@@ -14,7 +14,7 @@ const model = defineModel({ required: true });
             role="radio"
             :aria-checked="model === key"
             :aria-label="key"
-            class="grid size-9 place-items-center rounded-full text-white transition-transform active:scale-90"
+            class="flex size-9 items-center justify-center rounded-full text-white transition-transform active:scale-90"
             :class="model === key && 'ring-2 ring-offset-2 ring-offset-surface'"
             :style="{ background: color(key), '--tw-ring-color': color(key) }"
             @click="model = key"

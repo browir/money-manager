@@ -158,7 +158,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                     <button
                         v-if="!item"
                         type="button"
-                        class="mx-auto grid size-12 -translate-y-3 place-items-center rounded-[18px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_10px_20px_-8px_var(--hero-from)] ring-4 ring-paper transition active:scale-90"
+                        class="mx-auto flex size-12 -translate-y-3 items-center justify-center rounded-[18px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_10px_20px_-8px_var(--hero-from)] ring-4 ring-paper transition active:scale-90"
                         aria-label="Catat transaksi"
                         @click="openQuickAdd()"
                     >
