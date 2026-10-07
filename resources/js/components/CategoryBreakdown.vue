@@ -82,26 +82,28 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                         class="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-sunken/70"
                     >
                         <IconTile :icon="row.icon" :color="row.color" size="sm" />
+                        <!-- Nama & nominal di atas, bilah anggaran selebar baris, keterangan di bawah:
+                             panjang bilah sama di semua baris, tidak tergantung lebar angka. -->
                         <span class="min-w-0 flex-1">
-                            <span class="block truncate text-[14px]">{{ row.name }}</span>
-                            <template v-if="row.budget">
-                                <span class="mt-1 mb-1 block h-1 overflow-hidden rounded-full bg-sunken">
-                                    <span
-                                        class="block h-full rounded-full"
-                                        :class="row.total > row.budget ? 'bg-neg' : row.total >= row.budget * 0.85 ? 'bg-warn' : 'bg-bar'"
-                                        :style="{ width: `${Math.min(100, (row.total / row.budget) * 100)}%` }"
-                                    />
-                                </span>
-                                <span class="block text-[12px] tnum" :class="row.total > row.budget ? 'text-neg' : 'text-muted'">
+                            <span class="flex items-baseline justify-between gap-3">
+                                <span class="truncate text-[14px]">{{ row.name }}</span>
+                                <Money :value="row.total" class="shrink-0 text-[14px] font-medium tnum" />
+                            </span>
+                            <span v-if="row.budget" class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-sunken">
+                                <span
+                                    class="block h-full rounded-full"
+                                    :class="row.total > row.budget ? 'bg-neg' : row.total >= row.budget * 0.85 ? 'bg-warn' : 'bg-bar'"
+                                    :style="{ width: `${Math.min(100, (row.total / row.budget) * 100)}%` }"
+                                />
+                            </span>
+                            <span class="mt-1 flex items-baseline justify-between gap-3 text-[12px] tnum">
+                                <span v-if="row.budget" class="truncate" :class="row.total > row.budget ? 'text-neg' : 'text-muted'">
                                     <template v-if="row.total > row.budget">Lewat <Money :value="row.total - row.budget" /></template>
                                     <template v-else>Sisa <Money :value="row.budget - row.total" /></template>
                                 </span>
-                            </template>
-                            <span v-else class="block text-[12px] text-muted">{{ row.count }} transaksi</span>
-                        </span>
-                        <span class="text-right">
-                            <Money :value="row.total" class="block text-[14px] font-medium tnum" />
-                            <span class="block text-[12px] text-muted tnum">{{ percent(row.share) }}</span>
+                                <span v-else class="truncate text-muted">{{ row.count }} transaksi</span>
+                                <span class="shrink-0 text-muted">{{ percent(row.share) }}</span>
+                            </span>
                         </span>
                     </Link>
                 </li>

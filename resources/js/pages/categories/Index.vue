@@ -90,7 +90,7 @@ function destroy() {
                                 :style="{ width: `${Math.min(100, budgetUse(category).ratio * 100)}%` }"
                             />
                         </span>
-                        <span class="mt-1 block text-[12px] text-muted tnum">
+                        <span class="mt-1 block truncate text-[12px] text-muted tnum">
                             <Money :value="category.spent" /> dari <Money :value="category.budget" />
                         </span>
                     </template>

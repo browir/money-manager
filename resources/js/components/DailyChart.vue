@@ -50,8 +50,8 @@ function tooltipLeft(day) {
 
 <template>
     <figure>
-        <figcaption class="mb-4 flex items-baseline justify-between gap-3">
-            <span class="section-title">Pengeluaran harian</span>
+        <figcaption class="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span class="section-title whitespace-nowrap">Pengeluaran harian</span>
             <span class="text-[13px] text-muted">
                 rata-rata <Money :value="average" class="text-ink-2 tnum" />/hari
             </span>

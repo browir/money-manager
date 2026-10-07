@@ -398,9 +398,11 @@ useShortcuts({
                         :style="{ width: `${Math.min(100, budget.ratio * 100)}%` }"
                     />
                 </div>
-                <p class="mt-2 flex items-center justify-between gap-3 text-[12px] text-muted">
+                <p class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] text-muted">
                     <span>Terpakai <Money :value="budget.spent" /> dari <Money :value="budget.total" /></span>
-                    <span v-if="budget.overCount" class="whitespace-nowrap text-neg">{{ budget.overCount }} kategori lewat</span>
+                    <span v-if="budget.overCount" class="rounded-full bg-neg/10 px-2 py-0.5 font-medium whitespace-nowrap text-neg">
+                        {{ budget.overCount }} kategori lewat
+                    </span>
                 </p>
             </section>
 
