@@ -82,6 +82,14 @@ class TransactionController extends Controller
     public function update(Request $request, Transaction $transaction)
     {
         $this->ensureOwned($transaction);
+
+        // Penyesuaian saldo tidak diubah lewat form transaksi: hapus lalu sesuaikan ulang.
+        if ($transaction->type === Transaction::ADJUSTMENT) {
+            Inertia::flash('toast', ['message' => 'Penyesuaian saldo tidak bisa diubah, hapus lalu sesuaikan ulang']);
+
+            return back();
+        }
+
         $transaction->update($this->validated($request));
 
         Inertia::flash('saved', $transaction->id);
@@ -126,6 +134,7 @@ class TransactionController extends Controller
             'income' => 'Pemasukan',
             'expense' => 'Pengeluaran',
             'transfer' => 'Transfer',
+            Transaction::ADJUSTMENT => 'Penyesuaian saldo',
         };
     }
 }

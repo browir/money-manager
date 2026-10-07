@@ -33,7 +33,8 @@ class Account extends Model
     }
 
     /**
-     * Saldo = saldo awal + uang masuk - uang keluar (transfer dihitung di kedua sisi).
+     * Saldo = saldo awal + uang masuk - uang keluar (transfer dihitung di kedua sisi)
+     * + penyesuaian saldo (amount bertanda).
      */
     public function scopeWithBalance(Builder $query): Builder
     {
@@ -41,6 +42,7 @@ class Account extends Model
             accounts.initial_balance + COALESCE((
                 SELECT SUM(CASE
                     WHEN t.type = 'income' THEN t.amount
+                    WHEN t.type = 'adjustment' THEN t.amount
                     WHEN t.type = 'transfer' AND t.to_account_id = accounts.id THEN t.amount
                     ELSE -t.amount
                 END)

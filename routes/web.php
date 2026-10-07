@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/akun', [AccountController::class, 'store'])->name('accounts.store');
     Route::put('/akun/{account}', [AccountController::class, 'update'])->name('accounts.update');
     Route::delete('/akun/{account}', [AccountController::class, 'destroy'])->name('accounts.destroy');
+    Route::post('/akun/{account}/sesuaikan', [AccountController::class, 'adjust'])->name('accounts.adjust');
 
     Route::get('/kategori', [CategoryController::class, 'index'])->name('categories.index');
     Route::post('/kategori', [CategoryController::class, 'store'])->name('categories.store');

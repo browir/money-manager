@@ -10,7 +10,15 @@ class Transaction extends Model
 {
     use SoftDeletes;
 
+    /** Jenis yang bisa dicatat lewat form transaksi. */
     public const TYPES = ['income', 'expense', 'transfer'];
+
+    /**
+     * Penyesuaian saldo (rekonsiliasi): selisih antara saldo tercatat dan saldo sebenarnya.
+     * `amount` BERTANDA (+ menambah, − mengurangi saldo) dan tidak dihitung sebagai
+     * pemasukan/pengeluaran. Hanya dibuat lewat AccountController@adjust.
+     */
+    public const ADJUSTMENT = 'adjustment';
 
     protected $fillable = ['client_id', 'type', 'amount', 'account_id', 'to_account_id', 'category_id', 'note', 'occurred_on'];
 

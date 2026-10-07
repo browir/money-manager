@@ -1,12 +1,13 @@
 <script setup>
 import { router } from '@inertiajs/vue3';
-import { ArrowRightLeft, Trash2 } from 'lucide-vue-next';
+import { ArrowRightLeft, Scale, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
 import Money from '@/components/ui/Money.vue';
 import { useHighlighted } from '@/composables/useCelebration';
 import { openQuickAdd } from '@/composables/useQuickAdd';
+import { pushToast } from '@/composables/useToast';
 import { useLedger } from '@/composables/useLedger';
 import { categoryIcon } from '@/lib/icons';
 
@@ -22,14 +23,18 @@ const category = computed(() => categoryById.value[t.value.category_id]);
 const account = computed(() => accountById.value[t.value.account_id]);
 const toAccount = computed(() => accountById.value[t.value.to_account_id]);
 
+const isAdjustment = computed(() => t.value.type === 'adjustment');
+
 const title = computed(() => {
     if (t.value.note) return t.value.note;
     if (t.value.type === 'transfer') return 'Transfer';
+    if (isAdjustment.value) return 'Penyesuaian saldo';
     return category.value?.name ?? 'Tanpa kategori';
 });
 
 const subtitle = computed(() => {
     if (t.value.type === 'transfer') return `${account.value?.name ?? '?'} → ${toAccount.value?.name ?? '?'}`;
+    if (isAdjustment.value) return [t.value.note && 'Penyesuaian saldo', account.value?.name].filter(Boolean).join(' · ');
     const parts = [];
     if (t.value.note) parts.push(category.value?.name ?? 'Tanpa kategori');
     parts.push(account.value?.name);
@@ -94,6 +99,11 @@ function open() {
         offset.value = 0;
         return;
     }
+    // Penyesuaian saldo tidak lewat form transaksi (nominalnya selisih, bukan uang masuk/keluar).
+    if (isAdjustment.value) {
+        pushToast({ message: 'Penyesuaian saldo tidak bisa diubah. Geser untuk hapus, lalu sesuaikan ulang di Akun.' });
+        return;
+    }
     openQuickAdd({ transaction: t.value });
 }
 </script>
@@ -134,6 +144,7 @@ function open() {
                 :icon="ArrowRightLeft"
                 color="slate"
             />
+            <IconTile v-else-if="isAdjustment" :icon="Scale" color="sand" />
             <IconTile v-else :icon="categoryIcon(category?.icon)" :color="category?.color ?? 'slate'" />
 
             <div class="min-w-0 flex-1">
@@ -155,9 +166,9 @@ function open() {
 
             <Money
                 :value="signed"
-                :sign="t.type === 'income'"
+                :sign="t.type === 'income' || isAdjustment"
                 class="text-[15px] font-medium tnum"
-                :class="{ 'text-pos': t.type === 'income', 'text-ink-2': t.type === 'transfer' }"
+                :class="{ 'text-pos': t.type === 'income', 'text-ink-2': t.type === 'transfer' || isAdjustment }"
             />
         </div>
     </div>
