@@ -11,6 +11,7 @@ export function useLedger() {
     const accountById = computed(() => Object.fromEntries(accounts.value.map((a) => [a.id, a])));
     const categoryById = computed(() => Object.fromEntries(categories.value.map((c) => [c.id, c])));
     const netWorth = computed(() => accounts.value.reduce((sum, a) => sum + a.balance, 0));
+    const noteSuggestions = computed(() => page.props.noteSuggestions ?? []);
 
-    return { accounts, activeAccounts, categories, accountById, categoryById, netWorth };
+    return { accounts, activeAccounts, categories, accountById, categoryById, netWorth, noteSuggestions };
 }

@@ -1,6 +1,6 @@
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
-import { ArrowRight, ArrowRightLeft, CalendarDays, Trash2, X } from 'lucide-vue-next';
+import { ArrowRight, ArrowRightLeft, CalendarDays, Copy, Trash2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
@@ -8,15 +8,15 @@ import CalendarPicker from '@/components/ui/CalendarPicker.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { celebrate } from '@/composables/useCelebration';
-import { closeQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
+import { closeQuickAdd, openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
-import { addDays, dayLabel, today } from '@/lib/dates';
+import { addDays, currentMonth, dayLabel, today } from '@/lib/dates';
 import { accountIcon, categoryIcon } from '@/lib/icons';
-import { digits, evaluate, formatExpr, hasOperator, pressKey } from '@/lib/money';
+import { digits, evaluate, formatExpr, hasOperator, pressKey, rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
 
 const state = useQuickAdd();
-const { activeAccounts, categories, accountById, categoryById } = useLedger();
+const { activeAccounts, categories, accountById, categoryById, noteSuggestions } = useLedger();
 
 const TYPES = [
     { value: 'expense', label: 'Pengeluaran' },
@@ -47,9 +47,39 @@ watch(showCalendar, async (open) => {
     calendarEl.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 });
 
+// Yang paling sering dipakai (90 hari) di depan; sisanya ikut urutan manual (sort stabil).
 const typeCategories = computed(() =>
-    categories.value.filter((c) => c.type === (form.type === 'income' ? 'income' : 'expense')),
+    categories.value
+        .filter((c) => c.type === (form.type === 'income' ? 'income' : 'expense'))
+        .sort((a, b) => (b.uses ?? 0) - (a.uses ?? 0)),
 );
+
+/* ---- Saran catatan dari riwayat ---- */
+const suggestions = computed(() => {
+    if (form.type === 'transfer') return [];
+    const typed = form.note.trim().toLowerCase();
+    let pool = noteSuggestions.value.filter((s) => s.type === form.type);
+    if (typed) pool = pool.filter((s) => s.note.toLowerCase().includes(typed) && s.note.toLowerCase() !== typed);
+    else if (form.category_id) pool = pool.filter((s) => s.category_id === form.category_id);
+    else return [];
+    const seen = new Set();
+    return pool.filter((s) => !seen.has(s.note.toLowerCase()) && seen.add(s.note.toLowerCase())).slice(0, 6);
+});
+
+function pickSuggestion(s) {
+    form.note = s.note;
+    if (!form.category_id && categoryById.value[s.category_id]) form.category_id = s.category_id;
+}
+
+/* ---- Sisa anggaran kategori (hanya bulan berjalan; "spent" dari server) ---- */
+const budgetHint = computed(() => {
+    const c = categoryById.value[form.category_id];
+    if (form.type !== 'expense' || !c?.budget || form.occurred_on.slice(0, 7) !== currentMonth()) return null;
+    const e = editing.value;
+    const already = e && e.type === 'expense' && e.category_id === c.id && e.occurred_on.slice(0, 7) === currentMonth() ? e.amount : 0;
+    const left = c.budget - (c.spent - already) - amount.value;
+    return { name: c.name, left, over: left < 0 };
+});
 const targetAccounts = computed(() => activeAccounts.value.filter((a) => a.id !== form.account_id));
 
 function remembered(key) {
@@ -82,27 +112,34 @@ function reset() {
         return;
     }
     const ids = activeAccounts.value.map((a) => a.id);
-    const lastAccount = remembered('account');
+    // Duplikat: salin isian transaksi asal, tapi tanggalnya hari ini.
+    const tpl = state.template;
+    const lastAccount = tpl?.account_id ?? remembered('account');
     form.type = state.type;
     form.account_id = ids.includes(lastAccount) ? lastAccount : (ids[0] ?? null);
-    form.to_account_id = null;
-    form.category_id = null;
-    form.note = '';
+    form.to_account_id = tpl?.to_account_id ?? null;
+    form.category_id = tpl?.category_id ?? null;
+    form.note = tpl?.note ?? '';
     form.occurred_on = today();
-    expr.value = '';
-    if (form.type === 'transfer') form.to_account_id = targetAccounts.value[0]?.id ?? null;
+    expr.value = tpl ? String(tpl.amount) : '';
+    if (form.type === 'transfer' && !form.to_account_id) form.to_account_id = targetAccounts.value[0]?.id ?? null;
 }
 
 watch(
-    () => state.open,
-    (open) => open && reset(),
+    () => state.nonce,
+    () => state.open && reset(),
 );
+
+function duplicate() {
+    openQuickAdd({ template: editing.value });
+}
 
 // Ganti tipe: kategori lama tidak lagi relevan.
 watch(
     () => form.type,
     (type, old) => {
-        if (old && type !== old && !(editing.value && editing.value.type === type)) form.category_id = null;
+        const source = editing.value ?? state.template;
+        if (old && type !== old && !(source && source.type === type)) form.category_id = null;
         if (type === 'transfer' && !form.to_account_id) form.to_account_id = targetAccounts.value[0]?.id ?? null;
     },
 );
@@ -204,6 +241,16 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
         <template #header>
             <div class="flex w-full items-center gap-2">
                 <Segmented v-model="form.type" :options="TYPES" class="flex-1" />
+                <button
+                    v-if="editing"
+                    type="button"
+                    class="icon-btn"
+                    aria-label="Duplikat transaksi"
+                    title="Duplikat sebagai transaksi baru"
+                    @click="duplicate"
+                >
+                    <Copy class="size-[18px]" />
+                </button>
                 <button
                     v-if="editing"
                     type="button"
@@ -313,6 +360,10 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
                     {{ category.name }}
                 </button>
             </div>
+            <p v-if="budgetHint" class="mt-2 text-[12px]" :class="budgetHint.over ? 'text-neg' : 'text-muted'">
+                <template v-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} {{ rupiah(-budgetHint.left) }}</template>
+                <template v-else>Sisa anggaran {{ budgetHint.name }}: <span class="amount">{{ rupiah(budgetHint.left) }}</span></template>
+            </p>
         </section>
 
         <!-- Tanggal -->
@@ -351,6 +402,17 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
 
         <!-- Catatan -->
         <section class="mb-4">
+            <div v-if="suggestions.length" class="no-scrollbar -mx-5 mb-2 flex gap-1.5 overflow-x-auto px-5">
+                <button
+                    v-for="s in suggestions"
+                    :key="s.note"
+                    type="button"
+                    class="shrink-0 rounded-full bg-sunken px-3 py-1.5 text-[13px] text-ink-2 transition active:scale-95"
+                    @click="pickSuggestion(s)"
+                >
+                    {{ s.note }}
+                </button>
+            </div>
             <input
                 v-model="form.note"
                 type="text"

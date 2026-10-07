@@ -16,7 +16,7 @@ import { togglePrivacy, usePrivacy } from '@/composables/usePrivacy';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { useShortcuts } from '@/composables/useShortcuts';
-import { currentMonth, monthLabel, shiftMonth, today } from '@/lib/dates';
+import { currentMonth, daysInMonth, monthLabel, shiftMonth, today } from '@/lib/dates';
 import { ACCOUNT_TYPES, accountIcon } from '@/lib/icons';
 import { rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
@@ -30,7 +30,7 @@ const props = defineProps({
 });
 
 const page = usePage();
-const { activeAccounts, netWorth } = useLedger();
+const { activeAccounts, categories, netWorth } = useLedger();
 const hidden = usePrivacy();
 
 /* ---- Sapaan ---- */
@@ -82,6 +82,26 @@ const todayStat = computed(() => {
     const before = props.daily.slice(0, day - 1);
     const avg = before.length ? before.reduce((s, d) => s + d.expense, 0) / before.length : 0;
     return { spent, avg, diff: avg ? Math.round(((spent - avg) / avg) * 100) : null };
+});
+
+/* ---- Anggaran bulan berjalan (budget & spent per kategori dari server) ---- */
+const budget = computed(() => {
+    if (!isCurrentMonth.value) return null;
+    const list = categories.value.filter((c) => c.type === 'expense' && c.budget);
+    if (!list.length) return null;
+    const total = list.reduce((s, c) => s + c.budget, 0);
+    const spent = list.reduce((s, c) => s + c.spent, 0);
+    const left = total - spent;
+    const daysLeft = daysInMonth(props.month) - Number(today().slice(8)) + 1;
+    return {
+        total,
+        spent,
+        left,
+        daysLeft,
+        perDay: left > 0 ? Math.floor(left / daysLeft) : 0,
+        ratio: spent / total,
+        overCount: list.filter((c) => c.spent > c.budget).length,
+    };
 });
 
 /* ---- Bilah mini saat saldo utama tergulir keluar layar (HP) ---- */
@@ -302,6 +322,39 @@ useShortcuts({
                     <template v-else>Belum ada pengeluaran hari ini. Pertahankan!</template>
                 </p>
             </div>
+
+            <!-- Anggaran -->
+            <section v-if="budget" class="rounded-[22px] border border-line bg-surface p-4 md:p-5">
+                <div class="mb-3 flex items-baseline justify-between">
+                    <h2 class="text-[15px] font-medium">Anggaran</h2>
+                    <Link :href="route('categories.index')" class="text-[13px] text-accent-text hover:underline">Atur</Link>
+                </div>
+                <template v-if="budget.left > 0">
+                    <p class="text-[13px] text-muted">Jatah harian</p>
+                    <p class="mt-0.5 text-[24px] font-semibold tracking-tight">
+                        <Money :value="budget.perDay" animate /><span class="text-[15px] font-medium text-muted"> /hari</span>
+                    </p>
+                    <p class="mt-1 text-[12px] text-muted">
+                        Sisa <Money :value="budget.left" class="font-medium text-ink-2" /> untuk {{ budget.daysLeft }} hari lagi
+                    </p>
+                </template>
+                <template v-else>
+                    <p class="text-[13px] text-muted">Anggaran terlampaui</p>
+                    <p class="mt-0.5 text-[24px] font-semibold tracking-tight text-neg"><Money :value="-budget.left" /></p>
+                    <p class="mt-1 text-[12px] text-muted">di atas total anggaran bulan ini</p>
+                </template>
+                <div class="mt-4 h-2 overflow-hidden rounded-full bg-sunken" role="presentation">
+                    <div
+                        class="h-full rounded-full transition-[width] duration-700 ease-out-soft"
+                        :class="budget.ratio > 1 ? 'bg-neg' : budget.ratio >= 0.85 ? 'bg-warn' : 'bg-bar'"
+                        :style="{ width: `${Math.min(100, budget.ratio * 100)}%` }"
+                    />
+                </div>
+                <p class="mt-2 flex items-center justify-between gap-3 text-[12px] text-muted">
+                    <span>Terpakai <Money :value="budget.spent" /> dari <Money :value="budget.total" /></span>
+                    <span v-if="budget.overCount" class="whitespace-nowrap text-neg">{{ budget.overCount }} kategori lewat</span>
+                </p>
+            </section>
 
             <div class="rounded-[22px] border border-line bg-surface p-4 md:border-0 md:bg-transparent md:p-0">
                 <DailyChart :month="month" :daily="daily" />

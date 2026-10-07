@@ -10,7 +10,14 @@ class Category extends Model
 {
     public const TYPES = ['income', 'expense'];
 
-    protected $fillable = ['name', 'type', 'icon', 'color', 'sort'];
+    protected $fillable = ['name', 'type', 'icon', 'color', 'budget', 'sort'];
+
+    protected function casts(): array
+    {
+        return [
+            'budget' => 'integer',
+        ];
+    }
 
     public function user(): BelongsTo
     {

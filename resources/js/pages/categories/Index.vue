@@ -3,12 +3,14 @@ import { Head, router, useForm } from '@inertiajs/vue3';
 import { ChevronRight, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
+import AmountField from '@/components/ui/AmountField.vue';
 import ColorPicker from '@/components/ui/ColorPicker.vue';
 import IconTile from '@/components/ui/IconTile.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { useLedger } from '@/composables/useLedger';
 import { CATEGORY_ICONS, categoryIcon } from '@/lib/icons';
+import { rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
 
 const { categories } = useLedger();
@@ -18,7 +20,14 @@ const list = computed(() => categories.value.filter((c) => c.type === tab.value)
 const sheetOpen = ref(false);
 const editing = ref(null);
 const confirmDelete = ref(false);
-const form = useForm({ name: '', type: 'expense', icon: 'shapes', color: 'teal' });
+const form = useForm({ name: '', type: 'expense', icon: 'shapes', color: 'teal', budget: 0 });
+
+/** Pemakaian anggaran bulan berjalan ("spent" dari server). */
+function budgetUse(category) {
+    if (category.type !== 'expense' || !category.budget) return null;
+    const ratio = category.spent / category.budget;
+    return { ratio, over: ratio > 1, warn: ratio >= 0.85 && ratio <= 1 };
+}
 
 function edit(category = null) {
     editing.value = category;
@@ -28,6 +37,7 @@ function edit(category = null) {
     form.type = category?.type ?? tab.value;
     form.icon = category?.icon ?? 'shapes';
     form.color = category?.color ?? 'teal';
+    form.budget = category?.budget ?? 0;
     sheetOpen.value = true;
 }
 
@@ -70,7 +80,21 @@ function destroy() {
         <li v-for="category in list" :key="category.id" class="border-b border-line">
             <button type="button" class="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80" @click="edit(category)">
                 <IconTile :icon="categoryIcon(category.icon)" :color="category.color" />
-                <span class="flex-1 truncate text-[15px]">{{ category.name }}</span>
+                <span class="min-w-0 flex-1">
+                    <span class="block truncate text-[15px]">{{ category.name }}</span>
+                    <template v-if="budgetUse(category)">
+                        <span class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-sunken">
+                            <span
+                                class="block h-full rounded-full"
+                                :class="budgetUse(category).over ? 'bg-neg' : budgetUse(category).warn ? 'bg-warn' : 'bg-bar'"
+                                :style="{ width: `${Math.min(100, budgetUse(category).ratio * 100)}%` }"
+                            />
+                        </span>
+                        <span class="mt-1 block text-[12px] text-muted tnum">
+                            <span class="amount">{{ rupiah(category.spent) }}</span> dari <span class="amount">{{ rupiah(category.budget) }}</span>
+                        </span>
+                    </template>
+                </span>
                 <ChevronRight class="size-4 text-muted" />
             </button>
         </li>
@@ -95,6 +119,13 @@ function destroy() {
                         { value: 'income', label: 'Pemasukan' },
                     ]"
                 />
+            </div>
+
+            <div v-if="form.type === 'expense'">
+                <span class="field-label">Anggaran bulanan</span>
+                <AmountField v-model="form.budget" />
+                <p class="mt-1.5 text-[12px] text-muted">Opsional. Kosongkan jika kategori ini tidak dibatasi.</p>
+                <p v-if="form.errors.budget" class="field-error">{{ form.errors.budget }}</p>
             </div>
 
             <div>

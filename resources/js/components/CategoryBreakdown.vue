@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
 import { useLedger } from '@/composables/useLedger';
+import { currentMonth } from '@/lib/dates';
 import { categoryIcon } from '@/lib/icons';
 import { rupiah } from '@/lib/money';
 import { color } from '@/lib/palette';
@@ -17,7 +18,10 @@ const props = defineProps({
 
 const expanded = ref(false);
 
-const { categoryById } = useLedger();
+const { categories, categoryById } = useLedger();
+// Anggaran berlaku per bulan dengan nilai saat ini, jadi hanya ditampilkan untuk bulan berjalan.
+const showBudget = computed(() => props.month === currentMonth());
+const hasBudgets = computed(() => categories.value.some((c) => c.budget));
 const total = computed(() => props.items.reduce((s, i) => s + i.total, 0));
 
 const rows = computed(() =>
@@ -29,6 +33,7 @@ const rows = computed(() =>
             icon: categoryIcon(c?.icon),
             color: c?.color ?? 'slate',
             share: total.value ? item.total / total.value : 0,
+            budget: showBudget.value && c?.budget ? c.budget : null,
         };
     }),
 );
@@ -50,7 +55,14 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
     <section>
         <div class="mb-4 flex items-baseline justify-between">
             <h2 class="text-[15px] font-medium">Per kategori</h2>
-            <span class="amount text-[13px] text-muted tnum">{{ rupiah(total) }}</span>
+            <Link
+                v-if="showBudget && !hasBudgets"
+                :href="route('categories.index')"
+                class="text-[13px] text-accent-text hover:underline"
+            >
+                Atur anggaran
+            </Link>
+            <span v-else class="amount text-[13px] text-muted tnum">{{ rupiah(total) }}</span>
         </div>
 
         <template v-if="rows.length">
@@ -72,7 +84,20 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                         <IconTile :icon="row.icon" :color="row.color" size="sm" />
                         <span class="min-w-0 flex-1">
                             <span class="block truncate text-[14px]">{{ row.name }}</span>
-                            <span class="block text-[12px] text-muted">{{ row.count }} transaksi</span>
+                            <template v-if="row.budget">
+                                <span class="mt-1 mb-1 block h-1 overflow-hidden rounded-full bg-sunken">
+                                    <span
+                                        class="block h-full rounded-full"
+                                        :class="row.total > row.budget ? 'bg-neg' : row.total >= row.budget * 0.85 ? 'bg-warn' : 'bg-bar'"
+                                        :style="{ width: `${Math.min(100, (row.total / row.budget) * 100)}%` }"
+                                    />
+                                </span>
+                                <span class="block text-[12px] tnum" :class="row.total > row.budget ? 'text-neg' : 'text-muted'">
+                                    <template v-if="row.total > row.budget">Lewat <span class="amount">{{ rupiah(row.total - row.budget) }}</span></template>
+                                    <template v-else>Sisa <span class="amount">{{ rupiah(row.budget - row.total) }}</span></template>
+                                </span>
+                            </template>
+                            <span v-else class="block text-[12px] text-muted">{{ row.count }} transaksi</span>
                         </span>
                         <span class="text-right">
                             <span class="amount block text-[14px] font-medium tnum">{{ rupiah(row.total) }}</span>

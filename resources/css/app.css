@@ -28,6 +28,7 @@
     --accent-text: #24497a;
     --pos: #2e6b4c;
     --neg: #a2452e;
+    --warn: #a86f00;
     --bar: #2f6db5;
     --scrim: rgb(23 25 30 / 0.28);
     --shadow: 0 1px 0 rgb(23 25 30 / 0.04), 0 12px 32px -12px rgb(23 25 30 / 0.18);
@@ -62,6 +63,7 @@
     --accent-text: #a9c1e4;
     --pos: #7fc4a0;
     --neg: #e3907a;
+    --warn: #e0b04a;
     --bar: #4a86d0;
     --scrim: rgb(0 0 0 / 0.55);
     --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -12px rgb(0 0 0 / 0.6);
@@ -98,6 +100,7 @@
     --color-accent-text: var(--accent-text);
     --color-pos: var(--pos);
     --color-neg: var(--neg);
+    --color-warn: var(--warn);
     --color-bar: var(--bar);
     --color-scrim: var(--scrim);
 
