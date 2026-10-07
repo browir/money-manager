@@ -114,6 +114,12 @@
         overscroll-behavior-y: none;
     }
 
+    /* Matikan zoom ketuk-dua-kali, cubit tetap bisa. Dipasang di semua elemen
+       karena touch-action tidak menembus kontainer gulir bersarang. */
+    * {
+        touch-action: manipulation;
+    }
+
     body {
         background: var(--paper);
         color: var(--ink);
