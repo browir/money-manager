@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { dayLabel, today } from '@/lib/dates';
-import { compact, rupiah } from '@/lib/money';
+import Money from '@/components/ui/Money.vue';
+import { rupiah } from '@/lib/money';
 
 const props = defineProps({
     month: { type: String, required: true },
@@ -52,7 +53,7 @@ function tooltipLeft(day) {
         <figcaption class="mb-4 flex items-baseline justify-between gap-3">
             <span class="section-title">Pengeluaran harian</span>
             <span class="text-[13px] text-muted">
-                rata-rata <span class="amount text-ink-2 tnum">{{ rupiah(average) }}</span>/hari
+                rata-rata <Money :value="average" class="text-ink-2 tnum" />/hari
             </span>
         </figcaption>
 
@@ -65,19 +66,19 @@ function tooltipLeft(day) {
                     :style="{ left: tooltipLeft(activeDay.day) }"
                 >
                     <p class="text-[11px] opacity-70 first-letter:uppercase">{{ dayLabel(iso(activeDay.day)) }}</p>
-                    <p class="amount text-[13px] font-medium tnum">{{ rupiah(activeDay.expense) }}</p>
-                    <p v-if="activeDay.income" class="amount text-[11px] opacity-70 tnum">masuk {{ rupiah(activeDay.income) }}</p>
+                    <Money :value="activeDay.expense" class="block text-[13px] font-medium tnum" />
+                    <p v-if="activeDay.income" class="text-[11px] opacity-70 tnum">masuk <Money :value="activeDay.income" /></p>
                 </div>
             </Transition>
 
             <!-- Garis bantu -->
             <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2" aria-hidden="true">
                 <span class="h-px flex-1 border-t border-dashed border-line" />
-                <span class="amount text-[11px] text-muted tnum">{{ compact(scaleMax) }}</span>
+                <Money :value="scaleMax" compact class="text-[11px] text-muted tnum" />
             </div>
             <div class="pointer-events-none absolute inset-x-0 top-1/2 flex items-center gap-2" aria-hidden="true">
                 <span class="h-px flex-1 border-t border-dashed border-line" />
-                <span class="amount text-[11px] text-muted tnum">{{ compact(scaleMax / 2) }}</span>
+                <Money :value="scaleMax / 2" compact class="text-[11px] text-muted tnum" />
             </div>
 
             <div class="flex h-36 items-end gap-[2px] border-b border-line-strong pr-10 md:h-44" aria-hidden="true">

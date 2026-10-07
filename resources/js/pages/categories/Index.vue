@@ -6,11 +6,11 @@ import { route } from 'ziggy-js';
 import AmountField from '@/components/ui/AmountField.vue';
 import ColorPicker from '@/components/ui/ColorPicker.vue';
 import IconTile from '@/components/ui/IconTile.vue';
+import Money from '@/components/ui/Money.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { useLedger } from '@/composables/useLedger';
 import { CATEGORY_ICONS, categoryIcon } from '@/lib/icons';
-import { rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
 
 const { categories } = useLedger();
@@ -91,7 +91,7 @@ function destroy() {
                             />
                         </span>
                         <span class="mt-1 block text-[12px] text-muted tnum">
-                            <span class="amount">{{ rupiah(category.spent) }}</span> dari <span class="amount">{{ rupiah(category.budget) }}</span>
+                            <Money :value="category.spent" /> dari <Money :value="category.budget" />
                         </span>
                     </template>
                 </span>

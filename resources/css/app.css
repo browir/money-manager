@@ -272,13 +272,18 @@
     }
 }
 
-/* Mode privasi: nominal diburamkan. */
-.amount {
-    transition: filter 0.25s ease;
-}
-[data-private] .amount {
-    filter: blur(0.34em);
+/* Mode privasi: angka diganti titik oleh Money.vue (bukan blur: blur melelahkan mata). */
+.amount-mask {
+    letter-spacing: 0.06em;
     user-select: none;
+}
+.amount-swap-enter-active,
+.amount-swap-leave-active {
+    transition: opacity 0.14s ease;
+}
+.amount-swap-enter-from,
+.amount-swap-leave-to {
+    opacity: 0;
 }
 
 /* ---------------------------------------------------------------

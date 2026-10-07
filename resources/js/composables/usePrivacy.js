@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 
 /**
- * Mode privasi: semua elemen ber-kelas `.amount` diburamkan (lihat app.css).
+ * Mode privasi: semua nominal (komponen Money) diganti titik "Rp ••••••".
  * Berguna saat membuka aplikasi di tempat umum.
  */
 const KEY = 'sisih:private';

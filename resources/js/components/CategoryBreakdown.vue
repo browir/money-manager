@@ -3,10 +3,10 @@ import { Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
+import Money from '@/components/ui/Money.vue';
 import { useLedger } from '@/composables/useLedger';
 import { currentMonth } from '@/lib/dates';
 import { categoryIcon } from '@/lib/icons';
-import { rupiah } from '@/lib/money';
 import { color } from '@/lib/palette';
 
 const props = defineProps({
@@ -62,7 +62,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
             >
                 Atur anggaran
             </Link>
-            <span v-else class="amount text-[13px] text-muted tnum">{{ rupiah(total) }}</span>
+            <Money v-else :value="total" class="text-[13px] text-muted tnum" />
         </div>
 
         <template v-if="rows.length">
@@ -93,14 +93,14 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                                     />
                                 </span>
                                 <span class="block text-[12px] tnum" :class="row.total > row.budget ? 'text-neg' : 'text-muted'">
-                                    <template v-if="row.total > row.budget">Lewat <span class="amount">{{ rupiah(row.total - row.budget) }}</span></template>
-                                    <template v-else>Sisa <span class="amount">{{ rupiah(row.budget - row.total) }}</span></template>
+                                    <template v-if="row.total > row.budget">Lewat <Money :value="row.total - row.budget" /></template>
+                                    <template v-else>Sisa <Money :value="row.budget - row.total" /></template>
                                 </span>
                             </template>
                             <span v-else class="block text-[12px] text-muted">{{ row.count }} transaksi</span>
                         </span>
                         <span class="text-right">
-                            <span class="amount block text-[14px] font-medium tnum">{{ rupiah(row.total) }}</span>
+                            <Money :value="row.total" class="block text-[14px] font-medium tnum" />
                             <span class="block text-[12px] text-muted tnum">{{ percent(row.share) }}</span>
                         </span>
                     </Link>

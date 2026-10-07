@@ -19,7 +19,6 @@ import { useLedger } from '@/composables/useLedger';
 import { useShortcuts } from '@/composables/useShortcuts';
 import { currentMonth, daysInMonth, monthLabel, shiftMonth, today } from '@/lib/dates';
 import { ACCOUNT_TYPES, accountIcon } from '@/lib/icons';
-import { rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
 import SisihMark from '@/components/ui/SisihMark.vue';
 
@@ -35,6 +34,7 @@ const props = defineProps({
 const page = usePage();
 const { activeAccounts, categories, netWorth } = useLedger();
 const hidden = usePrivacy();
+const peek = ref(false);
 
 /* ---- Sapaan ---- */
 const name = computed(() => page.props.auth.user?.name ?? '');
@@ -191,9 +191,20 @@ useShortcuts({
                         <Eye v-else class="size-4" />
                     </button>
                 </div>
-                <p class="mt-1.5 text-[40px] leading-none font-semibold tracking-[-0.04em] md:text-[54px]" :class="netWorth < 0 && 'text-(--hero-neg)'">
-                    <Money :value="netWorth" animate split-currency />
+                <!-- Mode privasi: tahan untuk mengintip saldo sebentar. -->
+                <p
+                    class="mt-1.5 text-[40px] leading-none font-semibold tracking-[-0.04em] select-none md:text-[54px]"
+                    :class="[netWorth < 0 && 'text-(--hero-neg)', hidden && 'cursor-pointer']"
+                    :title="hidden ? 'Tahan untuk melihat' : undefined"
+                    @pointerdown="peek = hidden"
+                    @pointerup="peek = false"
+                    @pointerleave="peek = false"
+                    @pointercancel="peek = false"
+                    @contextmenu="hidden && $event.preventDefault()"
+                >
+                    <Money :value="netWorth" animate split-currency :reveal="peek" />
                 </p>
+                <p v-if="hidden" class="mt-2 text-[11px] text-(--hero-muted)">Tahan angka untuk mengintip</p>
                 <div class="mt-4 flex flex-wrap items-center gap-2 text-[12px]">
                     <span
                         v-if="isCurrentMonth && net !== 0"
@@ -346,7 +357,7 @@ useShortcuts({
                 </span>
                 <p class="text-[13px] leading-snug text-ink-2">
                     <template v-if="todayStat.spent">
-                        Hari ini keluar <span class="amount font-semibold text-ink">{{ rupiah(todayStat.spent) }}</span>
+                        Hari ini keluar <Money :value="todayStat.spent" class="font-semibold text-ink" />
                         <template v-if="todayStat.diff !== null">
                             ·
                             <span class="whitespace-nowrap" :class="todayStat.diff > 0 ? 'text-neg' : 'text-pos'">

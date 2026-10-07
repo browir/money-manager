@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
 import CalendarPicker from '@/components/ui/CalendarPicker.vue';
+import Money from '@/components/ui/Money.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { celebrate } from '@/composables/useCelebration';
@@ -14,7 +15,7 @@ import { closeQuickAdd, openQuickAdd, useQuickAdd } from '@/composables/useQuick
 import { useLedger } from '@/composables/useLedger';
 import { addDays, currentMonth, dayLabel, today } from '@/lib/dates';
 import { accountIcon, categoryIcon } from '@/lib/icons';
-import { digits, evaluate, formatExpr, hasOperator, pressKey, rupiah } from '@/lib/money';
+import { digits, evaluate, formatExpr, hasOperator, pressKey } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
 
 const state = useQuickAdd();
@@ -413,8 +414,8 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
                 </button>
             </div>
             <p v-if="budgetHint" class="mt-2 text-[12px]" :class="budgetHint.over ? 'text-neg' : 'text-muted'">
-                <template v-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} {{ rupiah(-budgetHint.left) }}</template>
-                <template v-else>Sisa anggaran {{ budgetHint.name }}: <span class="amount">{{ rupiah(budgetHint.left) }}</span></template>
+                <template v-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} <Money :value="-budgetHint.left" /></template>
+                <template v-else>Sisa anggaran {{ budgetHint.name }}: <Money :value="budgetHint.left" /></template>
             </p>
         </section>
 
