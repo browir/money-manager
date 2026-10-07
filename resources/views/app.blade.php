@@ -19,6 +19,9 @@
             try { pref = localStorage.getItem('sisih:theme') || 'system'; } catch (e) {}
             var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
             document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+            document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+                m.setAttribute('content', dark ? '#111317' : '#F6F5F1');
+            });
             try { if (localStorage.getItem('sisih:private') === '1') document.documentElement.setAttribute('data-private', ''); } catch (e) {}
         })();
     </script>

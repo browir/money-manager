@@ -84,7 +84,7 @@ useShortcuts({
                 v-model="search"
                 type="search"
                 class="field pr-10 pl-10"
-                placeholder="Cari catatan…"
+                placeholder="Cari catatan atau kategori…"
                 @keydown.esc="search = ''"
             />
             <kbd

@@ -13,9 +13,15 @@ function read() {
 
 const preference = ref(read());
 
+// Warna bilah status/PWA; samakan dengan --paper dan meta di app.blade.php.
+const BAR_COLOR = { light: '#F6F5F1', dark: '#111317' };
+
 function apply() {
     const dark = preference.value === 'dark' || (preference.value === 'system' && media?.matches);
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    const theme = dark ? 'dark' : 'light';
+    document.documentElement.dataset.theme = theme;
+    // Meta bawaan mengikuti tema sistem; timpa agar ikut pilihan manual.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', BAR_COLOR[theme]));
 }
 
 media?.addEventListener('change', apply);

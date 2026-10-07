@@ -22,7 +22,12 @@ class TransactionController extends Controller
                 fn ($q) => $q->where('account_id', $id)->orWhere('to_account_id', $id)
             ))
             ->when($filters['category'] ?? null, fn ($q, $id) => $q->where('category_id', $id))
-            ->when($filters['q'] ?? null, fn ($q, $term) => $q->where('note', 'like', '%'.$term.'%'))
+            // LOWER() agar tidak peka huruf besar/kecil: LIKE di Postgres (produksi) peka huruf.
+            ->when($filters['q'] ?? null, fn ($q, $term) => $q->where(function ($q) use ($term) {
+                $like = '%'.mb_strtolower($term).'%';
+                $q->whereRaw('LOWER(note) LIKE ?', [$like])
+                    ->orWhereHas('category', fn ($c) => $c->whereRaw('LOWER(name) LIKE ?', [$like]));
+            }))
             ->orderByDesc('occurred_on')
             ->orderByDesc('id')
             ->get()

@@ -1,7 +1,7 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sun, Wallet } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
 import PullToRefresh from '@/components/PullToRefresh.vue';
@@ -39,6 +39,17 @@ useShortcuts({
     b: jump('dashboard'),
     t: jump('transactions.index'),
     a: jump('accounts.index'),
+});
+
+// Pintasan ikon PWA (manifest "shortcuts"): /?catat=pengeluaran|pemasukan|transfer.
+const SHORTCUT_TYPES = { pengeluaran: 'expense', pemasukan: 'income', transfer: 'transfer' };
+onMounted(() => {
+    const url = new URL(window.location.href);
+    const type = SHORTCUT_TYPES[url.searchParams.get('catat')];
+    if (!type) return;
+    url.searchParams.delete('catat');
+    history.replaceState(history.state, '', url);
+    openQuickAdd({ type });
 });
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
