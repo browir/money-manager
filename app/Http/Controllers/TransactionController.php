@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ValidatesTransactionFields;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class TransactionController extends Controller
 {
+    use ValidatesTransactionFields;
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -42,7 +44,34 @@ class TransactionController extends Controller
 
     public function store(Request $request)
     {
-        $transaction = $request->user()->transactions()->create($this->validated($request));
+        $user = $request->user();
+        $extra = $request->validate([
+            'client_id' => ['nullable', 'uuid'], // dari antrean offline
+            'recurring_id' => ['nullable', 'integer'], // dicatat dari jadwal berulang
+        ]);
+        $clientId = $extra['client_id'] ?? null;
+
+        // Kiriman ulang dari antrean offline (respons sebelumnya hilang): jangan dobel.
+        $existing = $clientId ? $user->transactions()->withTrashed()->where('client_id', $clientId)->first() : null;
+        if ($existing) {
+            return $this->stored($request, $existing);
+        }
+
+        $transaction = $user->transactions()->create([...$this->validated($request), 'client_id' => $clientId]);
+
+        if ($recurringId = $extra['recurring_id'] ?? null) {
+            $user->recurrings()->find($recurringId)?->advance();
+        }
+
+        return $this->stored($request, $transaction);
+    }
+
+    /** Antrean offline mengirim lewat fetch biasa (JSON); form Inertia kembali ke halaman asal. */
+    private function stored(Request $request, Transaction $transaction)
+    {
+        if ($request->wantsJson() && ! $request->header('X-Inertia')) {
+            return response()->json(['id' => $transaction->id], 201);
+        }
 
         // Konfirmasi visual (animasi) ditangani di klien; cukup kirim id untuk disorot.
         Inertia::flash('saved', $transaction->id);
@@ -86,34 +115,9 @@ class TransactionController extends Controller
 
     private function validated(Request $request): array
     {
-        $userId = $request->user()->id;
-        $ownedAccount = Rule::exists('accounts', 'id')->where('user_id', $userId);
-        $type = $request->input('type');
-
-        $data = $request->validate([
-            'type' => ['required', Rule::in(Transaction::TYPES)],
-            'amount' => ['required', 'integer', 'min:1', 'max:999999999999'],
-            'account_id' => ['required', 'integer', $ownedAccount],
-            'to_account_id' => ['nullable', 'required_if:type,transfer', 'integer', 'different:account_id', $ownedAccount],
-            'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')
-                ->where('user_id', $userId)
-                ->where('type', $type === 'income' ? 'income' : 'expense')],
-            'note' => ['nullable', 'string', 'max:160'],
+        return $this->validateTransactionFields($request, [
             'occurred_on' => ['required', 'date_format:Y-m-d'],
-        ], [
-            'amount.min' => 'Nominal belum diisi.',
-            'amount.required' => 'Nominal belum diisi.',
-            'to_account_id.required_if' => 'Pilih akun tujuan.',
-            'to_account_id.different' => 'Akun tujuan harus berbeda.',
         ]);
-
-        if ($type === 'transfer') {
-            $data['category_id'] = null;
-        } else {
-            $data['to_account_id'] = null;
-        }
-
-        return $data;
     }
 
     private function label(Transaction $transaction): string

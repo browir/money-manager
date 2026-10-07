@@ -8,6 +8,7 @@ import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CategoryBreakdown from '@/components/CategoryBreakdown.vue';
 import DailyChart from '@/components/DailyChart.vue';
+import DueRecurring from '@/components/DueRecurring.vue';
 import TransactionGroups from '@/components/TransactionGroups.vue';
 import IconTile from '@/components/ui/IconTile.vue';
 import Money from '@/components/ui/Money.vue';
@@ -27,6 +28,7 @@ const props = defineProps({
     byCategory: Array,
     daily: Array,
     recent: Array,
+    due: { type: Array, default: () => [] }, // jadwal berulang yang jatuh tempo
 });
 
 const page = usePage();
@@ -249,6 +251,8 @@ useShortcuts({
 
     <div class="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div class="flex min-w-0 flex-col gap-8">
+            <DueRecurring v-if="isCurrentMonth && due.length" :items="due" />
+
             <!-- Arus kas bulan ini -->
             <section class="rounded-[22px] border border-line bg-surface p-4 md:p-5">
                 <div class="mb-4 flex items-center justify-between">

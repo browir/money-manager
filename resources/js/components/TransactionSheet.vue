@@ -1,6 +1,6 @@
 <script setup>
 import { router, useForm } from '@inertiajs/vue3';
-import { ArrowRight, ArrowRightLeft, CalendarDays, Copy, Trash2, X } from 'lucide-vue-next';
+import { ArrowRight, ArrowRightLeft, CalendarDays, Copy, Repeat, Trash2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
@@ -8,6 +8,8 @@ import CalendarPicker from '@/components/ui/CalendarPicker.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { celebrate } from '@/composables/useCelebration';
+import { enqueue, newClientId } from '@/composables/useOutbox';
+import { pushToast } from '@/composables/useToast';
 import { closeQuickAdd, openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { addDays, currentMonth, dayLabel, today } from '@/lib/dates';
@@ -31,6 +33,8 @@ const form = useForm({
     category_id: null,
     note: '',
     occurred_on: today(),
+    recurring_id: null, // diisi saat mencatat dari jadwal berulang (jadwal ikut maju)
+    client_id: null, // UUID per transaksi baru: aman dikirim ulang dari antrean offline
 });
 const expr = ref('');
 const amount = computed(() => evaluate(expr.value));
@@ -108,6 +112,8 @@ function reset() {
         form.category_id = t.category_id;
         form.note = t.note ?? '';
         form.occurred_on = t.occurred_on;
+        form.recurring_id = null;
+        form.client_id = null;
         expr.value = String(t.amount);
         return;
     }
@@ -120,7 +126,9 @@ function reset() {
     form.to_account_id = tpl?.to_account_id ?? null;
     form.category_id = tpl?.category_id ?? null;
     form.note = tpl?.note ?? '';
-    form.occurred_on = today();
+    form.occurred_on = tpl?.occurred_on && tpl.recurring_id ? tpl.occurred_on : today();
+    form.recurring_id = tpl?.recurring_id ?? null;
+    form.client_id = newClientId();
     expr.value = tpl ? String(tpl.amount) : '';
     if (form.type === 'transfer' && !form.to_account_id) form.to_account_id = targetAccounts.value[0]?.id ?? null;
 }
@@ -132,6 +140,12 @@ watch(
 
 function duplicate() {
     openQuickAdd({ template: editing.value });
+}
+
+function makeRecurring() {
+    const id = editing.value.id;
+    closeQuickAdd();
+    router.visit(route('recurring.index', { dari: id }));
 }
 
 // Ganti tipe: kategori lama tidak lagi relevan.
@@ -178,12 +192,24 @@ function submit() {
 
     // Rekam detail sekarang: form direset begitu sheet ditutup.
     const summary = describe();
+
+    // Offline: transaksi baru masuk antrean di HP; perubahan belum bisa disimpan.
+    if (!navigator.onLine) {
+        editing.value ? offlineEditBlocked() : queueOffline(summary);
+        return;
+    }
+
     const options = {
         preserveScroll: true,
         onSuccess: () => {
             remember({ account: form.account_id });
             closeQuickAdd();
             celebrate(summary);
+        },
+        // Koneksi putus di tengah jalan: antre (client_id mencegah dobel bila ternyata sudah sampai).
+        onNetworkError: () => {
+            editing.value ? offlineEditBlocked() : queueOffline(summary);
+            return false;
         },
     };
     const payload = form.transform((data) => ({ ...data, amount: amount.value }));
@@ -193,6 +219,22 @@ function submit() {
     } else {
         payload.post(route('transactions.store'), options);
     }
+}
+
+function queueOffline(summary) {
+    enqueue(
+        { ...form.data(), amount: amount.value },
+        { title: form.note || summary.subtitle, amount: amount.value, type: form.type },
+    );
+    remember({ account: form.account_id });
+    closeQuickAdd();
+    celebrate({ ...summary, label: 'Tersimpan di HP', subtitle: 'Dikirim otomatis saat online' });
+}
+
+function offlineEditBlocked() {
+    shake.value = true;
+    setTimeout(() => (shake.value = false), 400);
+    pushToast({ message: 'Sedang offline: perubahan belum bisa disimpan' });
 }
 
 const LABELS = { expense: 'Pengeluaran tercatat', income: 'Pemasukan tercatat', transfer: 'Transfer tercatat' };
@@ -241,6 +283,16 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
         <template #header>
             <div class="flex w-full items-center gap-2">
                 <Segmented v-model="form.type" :options="TYPES" class="flex-1" />
+                <button
+                    v-if="editing"
+                    type="button"
+                    class="icon-btn"
+                    aria-label="Jadikan berulang"
+                    title="Jadikan transaksi berulang"
+                    @click="makeRecurring"
+                >
+                    <Repeat class="size-[18px]" />
+                </button>
                 <button
                     v-if="editing"
                     type="button"

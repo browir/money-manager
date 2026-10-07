@@ -1,9 +1,10 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Search, Settings, Sun, Wallet } from 'lucide-vue-next';
+import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Repeat, Search, Settings, Sun, Wallet } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
+import OfflineBar from '@/components/OfflineBar.vue';
 import PullToRefresh from '@/components/PullToRefresh.vue';
 import SaveCelebration from '@/components/SaveCelebration.vue';
 import TransactionSheet from '@/components/TransactionSheet.vue';
@@ -21,9 +22,10 @@ const nav = [
     { label: 'Transaksi', route: 'transactions.index', icon: List, match: 'transactions/' },
     { label: 'Akun', route: 'accounts.index', icon: Wallet, match: 'accounts/' },
     { label: 'Kategori', route: 'categories.index', icon: Layers, match: 'categories/' },
+    { label: 'Berulang', route: 'recurring.index', icon: Repeat, match: 'recurring/' },
     { label: 'Pengaturan', route: 'settings', icon: Settings, match: 'settings/' },
 ];
-const mobileNav = [nav[0], nav[1], null, nav[2], { label: 'Lainnya', route: 'settings', icon: MoreHorizontal, match: ['settings/', 'categories/'] }];
+const mobileNav = [nav[0], nav[1], null, nav[2], { label: 'Lainnya', route: 'settings', icon: MoreHorizontal, match: ['settings/', 'categories/', 'recurring/'] }];
 
 const isActive = (item) => [].concat(item.match).some((m) => page.component.startsWith(m));
 
@@ -113,6 +115,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
         <!-- Konten -->
         <main class="min-w-0 pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-16">
             <div :key="page.component" class="page-enter mx-auto w-full max-w-[1040px] px-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-10 md:pt-10">
+                <OfflineBar />
                 <slot />
             </div>
         </main>

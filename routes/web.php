@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\RecurringController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Artisan;
@@ -34,6 +35,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/kategori', [CategoryController::class, 'store'])->name('categories.store');
     Route::put('/kategori/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('/kategori/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    Route::get('/berulang', [RecurringController::class, 'index'])->name('recurring.index');
+    Route::post('/berulang', [RecurringController::class, 'store'])->name('recurring.store');
+    Route::put('/berulang/{recurring}', [RecurringController::class, 'update'])->name('recurring.update');
+    Route::delete('/berulang/{recurring}', [RecurringController::class, 'destroy'])->name('recurring.destroy');
+    Route::post('/berulang/{recurring}/catat', [RecurringController::class, 'record'])->name('recurring.record');
+    Route::post('/berulang/{recurring}/lewati', [RecurringController::class, 'skip'])->name('recurring.skip');
 
     Route::get('/pengaturan', [SettingsController::class, 'edit'])->name('settings');
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');

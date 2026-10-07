@@ -1,6 +1,6 @@
 <script setup>
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ChevronRight, Layers, LogOut } from 'lucide-vue-next';
+import { ChevronRight, Layers, LogOut, Repeat } from 'lucide-vue-next';
 import { route } from 'ziggy-js';
 import Segmented from '@/components/ui/Segmented.vue';
 import { setTheme, useTheme } from '@/composables/useTheme';
@@ -49,6 +49,14 @@ const shortcuts = [
         >
             <Layers class="size-5 text-ink-2" />
             <span class="flex-1 text-[15px]">Kategori</span>
+            <ChevronRight class="size-4 text-muted" />
+        </Link>
+        <Link
+            :href="route('recurring.index')"
+            class="-mt-8 flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 md:hidden"
+        >
+            <Repeat class="size-5 text-ink-2" />
+            <span class="flex-1 text-[15px]">Transaksi berulang</span>
             <ChevronRight class="size-4 text-muted" />
         </Link>
 

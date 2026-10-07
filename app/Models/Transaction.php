@@ -12,7 +12,7 @@ class Transaction extends Model
 
     public const TYPES = ['income', 'expense', 'transfer'];
 
-    protected $fillable = ['type', 'amount', 'account_id', 'to_account_id', 'category_id', 'note', 'occurred_on'];
+    protected $fillable = ['client_id', 'type', 'amount', 'account_id', 'to_account_id', 'category_id', 'note', 'occurred_on'];
 
     protected function casts(): array
     {

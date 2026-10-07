@@ -67,7 +67,15 @@ class DashboardController extends Controller
             ->get()
             ->map->toListItem();
 
+        // Jadwal berulang yang sudah jatuh tempo, menunggu dikonfirmasi.
+        $due = $user->recurrings()
+            ->whereDate('next_due', '<=', now()->toDateString())
+            ->orderBy('next_due')
+            ->get()
+            ->map->toListItem();
+
         return Inertia::render('Dashboard', [
+            'due' => $due,
             'month' => $month->format('Y-m'),
             'totals' => [
                 'income' => (int) $current->income,

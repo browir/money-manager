@@ -1,7 +1,7 @@
 <script setup>
 import { router } from '@inertiajs/vue3';
 import {
-    ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Home, Layers, List, Moon, Search, Settings, Wallet,
+    ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Home, Layers, List, Moon, Repeat, Search, Settings, Wallet,
 } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
@@ -23,6 +23,7 @@ const commands = [
     { group: 'Buka', label: 'Transaksi', icon: List, hint: 'G T', run: go('transactions.index') },
     { group: 'Buka', label: 'Akun', icon: Wallet, hint: 'G A', run: go('accounts.index') },
     { group: 'Buka', label: 'Kategori', icon: Layers, run: go('categories.index') },
+    { group: 'Buka', label: 'Transaksi berulang', icon: Repeat, run: go('recurring.index') },
     { group: 'Buka', label: 'Pengaturan', icon: Settings, run: go('settings') },
     { group: 'Lainnya', label: 'Ganti tema terang/gelap', icon: Moon, run: toggleTheme },
 ];

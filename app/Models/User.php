@@ -62,4 +62,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function recurrings(): HasMany
+    {
+        return $this->hasMany(Recurring::class);
+    }
 }
