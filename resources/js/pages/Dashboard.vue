@@ -243,17 +243,19 @@ useShortcuts({
     </section>
 
     <!-- Kartu akun yang bisa digeser (HP) -->
-    <section class="mb-8 md:hidden">
+    <section class="mb-5 md:hidden">
         <div class="mb-3 flex items-baseline justify-between">
             <h2 class="section-title">Akun</h2>
             <Link :href="route('accounts.index')" class="text-[13px] font-medium text-accent-text">Kelola</Link>
         </div>
-        <div class="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pt-1 pb-3">
+        <!-- Wadah geser memotong apa pun di luar batasnya (overflow), jadi beri ruang
+             atas/bawah agar bayangan kartu tidak terpotong jadi garis lurus. -->
+        <div class="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pt-2 pb-6">
             <Link
                 v-for="account in activeAccounts"
                 :key="account.id"
                 :href="route('transactions.index', { account: account.id })"
-                class="relative isolate flex w-[46%] min-w-[156px] shrink-0 snap-start flex-col justify-between gap-6 overflow-hidden rounded-[20px] border border-line p-4 shadow-card transition active:scale-[0.97]"
+                class="relative isolate flex w-[46%] min-w-[156px] shrink-0 snap-start flex-col justify-between gap-6 overflow-hidden rounded-[20px] border border-line p-4 shadow-[0_6px_14px_-10px_rgb(0_0_0/0.22)] transition active:scale-[0.97]"
                 :style="{ background: accountBg(account.color) }"
             >
                 <span class="absolute -top-10 -right-10 -z-10 size-28 rounded-full" :style="{ background: tint(account.color, 16) }" aria-hidden="true" />
