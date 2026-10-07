@@ -12,6 +12,7 @@ import Toaster from '@/components/ui/Toaster.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useShortcuts } from '@/composables/useShortcuts';
 import { toggleTheme } from '@/composables/useTheme';
+import SisihMark from '@/components/ui/SisihMark.vue';
 
 const page = usePage();
 const paletteOpen = ref(false);
@@ -79,9 +80,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
         <aside class="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface/55 px-4 py-6 backdrop-blur-xl md:flex">
             <Link :href="route('dashboard')" class="mb-8 flex items-center gap-2.5 px-2">
                 <span class="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_6px_14px_-6px_var(--hero-from)]">
-                    <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-                        <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
-                    </svg>
+                    <SisihMark class="size-5" />
                 </span>
                 <span class="text-[18px] font-semibold tracking-tight">Sisih</span>
             </Link>

@@ -21,6 +21,7 @@ import { currentMonth, daysInMonth, monthLabel, shiftMonth, today } from '@/lib/
 import { ACCOUNT_TYPES, accountIcon } from '@/lib/icons';
 import { rupiah } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
+import SisihMark from '@/components/ui/SisihMark.vue';
 
 const props = defineProps({
     month: String,
@@ -172,17 +173,7 @@ useShortcuts({
     <section ref="hero" class="hero-card mb-7 p-5 md:mb-9 md:p-7">
         <!-- Ornamen: cahaya + logo besar samar -->
         <span class="absolute -top-24 -right-20 -z-10 size-64 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
-        <svg
-            class="absolute -right-8 -bottom-14 -z-10 size-56 text-white opacity-[0.07] md:right-6 md:-bottom-20 md:size-72"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-            aria-hidden="true"
-        >
-            <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
-        </svg>
+        <SisihMark class="absolute -right-8 -bottom-14 -z-10 size-56 text-white opacity-[0.07] md:right-6 md:-bottom-20 md:size-72" />
 
         <div class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-10">
             <div class="min-w-0">
