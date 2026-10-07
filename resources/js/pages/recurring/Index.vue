@@ -149,7 +149,7 @@ onMounted(() => {
 
     <header class="mb-6 flex items-end justify-between gap-4">
         <div>
-            <h1 class="text-[26px] font-semibold tracking-[-0.025em] md:text-[30px]">Berulang</h1>
+            <h1 class="page-title">Berulang</h1>
             <p class="mt-1 text-[13px] text-muted">Gaji, tagihan, dan langganan. Muncul di beranda saat jatuh tempo.</p>
         </div>
         <button type="button" class="btn btn-primary shrink-0" @click="edit()"><Plus class="size-4" /> Jadwal</button>
@@ -161,8 +161,8 @@ onMounted(() => {
         <span v-if="monthly.expense">Keluar <Money :value="-Math.round(monthly.expense)" class="text-ink-2 tnum" /></span>
     </p>
 
-    <TransitionGroup v-if="recurrings.length" tag="ul" name="list" class="relative flex flex-col">
-        <li v-for="r in recurrings" :key="r.id" class="border-b border-line">
+    <TransitionGroup v-if="recurrings.length" tag="ul" name="list" class="card relative flex flex-col px-4 md:px-5">
+        <li v-for="r in recurrings" :key="r.id" class="border-b border-line last:border-b-0">
             <button type="button" class="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80" @click="edit(r)">
                 <IconTile v-if="r.type === 'transfer'" :icon="ArrowRightLeft" color="slate" />
                 <IconTile v-else :icon="categoryIcon(categoryById[r.category_id]?.icon)" :color="categoryById[r.category_id]?.color ?? 'slate'" />
@@ -185,8 +185,10 @@ onMounted(() => {
         </li>
     </TransitionGroup>
 
-    <div v-else class="rounded-2xl border border-dashed border-line px-4 py-14 text-center">
-        <Repeat class="mx-auto mb-3 size-6 text-muted" />
+    <div v-else class="card px-4 py-14 text-center">
+        <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-accent-soft text-accent-text">
+            <Repeat class="size-5" />
+        </span>
         <p class="mb-1 text-[15px] font-medium">Belum ada jadwal</p>
         <p class="mb-5 text-sm text-muted">Atur sekali, lalu catat dengan satu ketukan setiap jatuh tempo.</p>
         <button type="button" class="btn btn-quiet" @click="edit()">Buat jadwal</button>

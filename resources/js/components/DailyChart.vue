@@ -34,7 +34,10 @@ function barStyle(d) {
     const highlighted = active.value ? active.value === d.day : isToday(d.day);
     return {
         height: d.expense ? `max(${h}%, 3px)` : '0',
-        background: highlighted ? 'var(--bar)' : 'color-mix(in oklab, var(--bar) 38%, transparent)',
+        background: highlighted
+            ? 'linear-gradient(to top, var(--bar), color-mix(in oklab, var(--bar) 65%, white))'
+            : 'linear-gradient(to top, color-mix(in oklab, var(--bar) 30%, transparent), color-mix(in oklab, var(--bar) 48%, transparent))',
+        boxShadow: highlighted ? '0 4px 12px -4px color-mix(in oklab, var(--bar) 70%, transparent)' : undefined,
     };
 }
 
@@ -47,7 +50,7 @@ function tooltipLeft(day) {
 <template>
     <figure>
         <figcaption class="mb-4 flex items-baseline justify-between gap-3">
-            <span class="text-[15px] font-medium">Pengeluaran harian</span>
+            <span class="section-title">Pengeluaran harian</span>
             <span class="text-[13px] text-muted">
                 rata-rata <span class="amount text-ink-2 tnum">{{ rupiah(average) }}</span>/hari
             </span>
@@ -69,11 +72,11 @@ function tooltipLeft(day) {
 
             <!-- Garis bantu -->
             <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2" aria-hidden="true">
-                <span class="h-px flex-1 bg-line" />
+                <span class="h-px flex-1 border-t border-dashed border-line" />
                 <span class="amount text-[11px] text-muted tnum">{{ compact(scaleMax) }}</span>
             </div>
             <div class="pointer-events-none absolute inset-x-0 top-1/2 flex items-center gap-2" aria-hidden="true">
-                <span class="h-px flex-1 bg-line" />
+                <span class="h-px flex-1 border-t border-dashed border-line" />
                 <span class="amount text-[11px] text-muted tnum">{{ compact(scaleMax / 2) }}</span>
             </div>
 
@@ -89,7 +92,7 @@ function tooltipLeft(day) {
                     @click="active = active === d.day ? null : d.day"
                 >
                     <span
-                        class="w-full max-w-6 rounded-t-[3px] transition-[height,background-color] duration-500 ease-out-soft"
+                        class="w-full max-w-6 rounded-t-[5px] rounded-b-[1px] transition-[height] duration-500 ease-out-soft"
                         :style="barStyle(d)"
                     />
                 </button>

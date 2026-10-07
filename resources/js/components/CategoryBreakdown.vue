@@ -54,7 +54,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
 <template>
     <section>
         <div class="mb-4 flex items-baseline justify-between">
-            <h2 class="text-[15px] font-medium">Per kategori</h2>
+            <h2 class="section-title">Per kategori</h2>
             <Link
                 v-if="showBudget && !hasBudgets"
                 :href="route('categories.index')"
@@ -115,7 +115,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                 {{ expanded ? 'Ringkas' : `Tampilkan ${hiddenCount} lainnya` }}
             </button>
         </template>
-        <p v-else class="rounded-2xl border border-dashed border-line px-4 py-8 text-center text-sm text-muted">
+        <p v-else class="rounded-2xl bg-sunken/60 px-4 py-8 text-center text-sm text-muted">
             Belum ada pengeluaran bulan ini.
         </p>
     </section>

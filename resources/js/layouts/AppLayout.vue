@@ -16,6 +16,15 @@ import { toggleTheme } from '@/composables/useTheme';
 const page = usePage();
 const paletteOpen = ref(false);
 const user = computed(() => page.props.auth.user);
+const initials = computed(() =>
+    (user.value?.name ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase(),
+);
 
 const nav = [
     { label: 'Beranda', route: 'dashboard', icon: Home, match: 'Dashboard' },
@@ -58,25 +67,36 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 </script>
 
 <template>
-    <div class="min-h-dvh md:grid md:grid-cols-[232px_1fr]">
+    <div class="min-h-dvh md:grid md:grid-cols-[248px_1fr]">
+        <!-- Cahaya lembut di atas halaman: memberi kedalaman tanpa mengganggu isi. -->
+        <div
+            class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]"
+            style="background: radial-gradient(70% 100% at 50% -20%, var(--glow), transparent 70%)"
+            aria-hidden="true"
+        />
+
         <!-- Sidebar (desktop) -->
-        <aside class="sticky top-0 hidden h-dvh flex-col border-r border-line px-4 py-6 md:flex">
+        <aside class="sticky top-0 hidden h-dvh flex-col border-r border-line bg-surface/55 px-4 py-6 backdrop-blur-xl md:flex">
             <Link :href="route('dashboard')" class="mb-8 flex items-center gap-2.5 px-2">
-                <span class="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">
+                <span class="grid size-8 place-items-center rounded-[10px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_6px_14px_-6px_var(--hero-from)]">
                     <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                         <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                     </svg>
                 </span>
-                <span class="text-[17px] font-semibold tracking-tight">Sisih</span>
+                <span class="text-[18px] font-semibold tracking-tight">Sisih</span>
             </Link>
 
-            <button type="button" class="btn btn-primary mb-3 w-full justify-between pr-3" @click="openQuickAdd()">
+            <button
+                type="button"
+                class="btn btn-primary mb-3 h-11 w-full justify-between pr-3 shadow-[0_8px_18px_-10px_var(--accent)]"
+                @click="openQuickAdd()"
+            >
                 <span class="flex items-center gap-2"><Plus class="size-4" :stroke-width="2.4" /> Catat</span>
                 <kbd class="rounded-md bg-white/15 px-1.5 font-mono text-[11px] dark:bg-black/15">N</kbd>
             </button>
             <button
                 type="button"
-                class="mb-6 flex h-10 w-full items-center gap-2 rounded-xl border border-line px-3 text-sm text-muted transition-colors hover:border-line-strong hover:text-ink-2"
+                class="mb-7 flex h-10 w-full items-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-line-strong hover:text-ink-2"
                 @click="paletteOpen = true"
             >
                 <Search class="size-4" />
@@ -84,53 +104,62 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                 <kbd class="font-mono text-[11px]">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
             </button>
 
+            <p class="eyebrow mb-2 px-3">Menu</p>
             <nav class="flex flex-col gap-0.5">
                 <Link
                     v-for="item in nav"
                     :key="item.route"
                     :href="route(item.route)"
                     class="relative flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] transition-colors"
-                    :class="isActive(item) ? 'bg-sunken font-medium text-ink' : 'text-ink-2 hover:bg-sunken/60 hover:text-ink'"
+                    :class="isActive(item) ? 'bg-accent-soft font-medium text-accent-text' : 'text-ink-2 hover:bg-sunken/70 hover:text-ink'"
                 >
+                    <span
+                        v-if="isActive(item)"
+                        class="absolute top-2 bottom-2 -left-4 w-[3px] rounded-r-full bg-accent-text"
+                        aria-hidden="true"
+                    />
                     <component :is="item.icon" class="size-[18px]" :stroke-width="isActive(item) ? 2.1 : 1.8" />
                     {{ item.label }}
                 </Link>
             </nav>
 
-            <div class="mt-auto flex items-center gap-2 border-t border-line px-1 pt-4">
+            <div class="mt-auto flex items-center gap-2.5 rounded-2xl border border-line bg-surface p-2.5 shadow-card">
+                <span class="grid size-9 shrink-0 place-items-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent-text">
+                    {{ initials || 'S' }}
+                </span>
                 <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium">{{ user?.name }}</p>
-                    <p class="truncate text-xs text-muted">{{ user?.email }}</p>
+                    <p class="truncate text-[13px] font-medium">{{ user?.name }}</p>
+                    <p class="truncate text-[11px] text-muted">{{ user?.email }}</p>
                 </div>
-                <button type="button" class="icon-btn" aria-label="Ganti tema" title="Ganti tema" @click="toggleTheme">
-                    <Sun class="hidden size-[18px] dark:block" />
-                    <Moon class="size-[18px] dark:hidden" />
+                <button type="button" class="icon-btn size-8" aria-label="Ganti tema" title="Ganti tema" @click="toggleTheme">
+                    <Sun class="hidden size-4 dark:block" />
+                    <Moon class="size-4 dark:hidden" />
                 </button>
-                <Link :href="route('logout')" method="post" as="button" class="icon-btn" aria-label="Keluar" title="Keluar">
-                    <LogOut class="size-[18px]" />
+                <Link :href="route('logout')" method="post" as="button" class="icon-btn size-8" aria-label="Keluar" title="Keluar">
+                    <LogOut class="size-4" />
                 </Link>
             </div>
         </aside>
 
         <!-- Konten -->
-        <main class="min-w-0 pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-16">
-            <div :key="page.component" class="page-enter mx-auto w-full max-w-[1040px] px-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-10 md:pt-10">
+        <main class="min-w-0 pb-[calc(112px+env(safe-area-inset-bottom))] md:pb-16">
+            <div :key="page.component" class="page-enter mx-auto w-full max-w-[1080px] px-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-10 md:pt-10">
                 <OfflineBar />
                 <slot />
             </div>
         </main>
 
-        <!-- Navigasi bawah (HP) -->
+        <!-- Navigasi bawah (HP): pil mengambang -->
         <nav
-            class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/85 pb-safe backdrop-blur-xl md:hidden"
+            class="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-30 mx-auto max-w-md rounded-[26px] border border-line bg-surface/85 shadow-lift backdrop-blur-xl md:hidden"
             aria-label="Navigasi utama"
         >
-            <div class="mx-auto grid h-16 max-w-md grid-cols-5 items-center px-2">
+            <div class="grid h-16 grid-cols-5 items-center px-1.5">
                 <template v-for="(item, i) in mobileNav" :key="i">
                     <button
                         v-if="!item"
                         type="button"
-                        class="mx-auto grid size-12 place-items-center rounded-2xl bg-accent text-accent-fg shadow-[0_6px_16px_-6px_var(--accent)] transition active:scale-90"
+                        class="mx-auto grid size-12 -translate-y-3 place-items-center rounded-[18px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_10px_20px_-8px_var(--hero-from)] ring-4 ring-paper transition active:scale-90"
                         aria-label="Catat transaksi"
                         @click="openQuickAdd()"
                     >
@@ -139,10 +168,16 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                     <Link
                         v-else
                         :href="route(item.route)"
-                        class="flex flex-col items-center gap-1 text-[11px] transition-colors"
-                        :class="isActive(item) ? 'font-medium text-ink' : 'text-muted'"
+                        class="flex flex-col items-center gap-0.5 text-[10.5px] transition-colors"
+                        :class="isActive(item) ? 'font-semibold text-accent-text' : 'text-muted'"
+                        :aria-current="isActive(item) ? 'page' : undefined"
                     >
-                        <component :is="item.icon" class="size-[22px]" :stroke-width="isActive(item) ? 2.1 : 1.7" />
+                        <span
+                            class="grid h-7 w-12 place-items-center rounded-full transition-colors duration-200"
+                            :class="isActive(item) && 'bg-accent-soft'"
+                        >
+                            <component :is="item.icon" class="size-[20px]" :stroke-width="isActive(item) ? 2.2 : 1.7" />
+                        </span>
                         {{ item.label }}
                     </Link>
                 </template>

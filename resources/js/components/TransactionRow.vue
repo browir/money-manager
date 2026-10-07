@@ -115,7 +115,7 @@ function open() {
         <div
             role="button"
             tabindex="0"
-            class="group relative flex touch-pan-y items-center gap-3 bg-paper py-3 outline-none select-none focus-visible:bg-sunken md:rounded-xl md:px-2 md:hover:bg-sunken/70"
+            class="group relative flex touch-pan-y items-center gap-3 bg-surface py-3 outline-none select-none focus-visible:bg-sunken md:rounded-xl md:px-2 md:hover:bg-sunken/70"
             :class="highlighted === t.id && 'row-flash'"
             :style="{
                 transform: offset ? `translateX(${offset}px)` : undefined,
@@ -175,7 +175,7 @@ function open() {
         box-shadow: inset 3px 0 0 var(--accent-text);
     }
     100% {
-        background-color: var(--paper);
+        background-color: var(--surface);
         box-shadow: inset 3px 0 0 transparent;
     }
 }

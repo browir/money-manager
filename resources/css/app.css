@@ -32,6 +32,18 @@
     --bar: #2f6db5;
     --scrim: rgb(23 25 30 / 0.28);
     --shadow: 0 1px 0 rgb(23 25 30 / 0.04), 0 12px 32px -12px rgb(23 25 30 / 0.18);
+    --shadow-card: 0 1px 2px rgb(23 25 30 / 0.04), 0 8px 24px -14px rgb(23 25 30 / 0.14);
+    --shadow-lift: 0 2px 4px rgb(23 25 30 / 0.05), 0 18px 36px -18px rgb(23 25 30 / 0.24);
+    --glow: color-mix(in oklab, #2f6db5 10%, transparent);
+
+    /* Kartu saldo utama: tinta biru bergradasi. */
+    --hero-from: #1d3658;
+    --hero-to: #2e5d96;
+    --hero-fg: #ffffff;
+    --hero-muted: rgb(255 255 255 / 0.68);
+    --hero-glass: rgb(255 255 255 / 0.12);
+    --hero-neg: #ffc2b0;
+    --hero-pos: #b8f0cf;
 
     /* Warna identitas kategori (urutan tervalidasi, lihat lib/palette.js) */
     --c-teal: #1a9a82;
@@ -67,6 +79,17 @@
     --bar: #4a86d0;
     --scrim: rgb(0 0 0 / 0.55);
     --shadow: 0 1px 0 rgb(0 0 0 / 0.2), 0 16px 40px -12px rgb(0 0 0 / 0.6);
+    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 10px 28px -16px rgb(0 0 0 / 0.7);
+    --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -18px rgb(0 0 0 / 0.8);
+    --glow: color-mix(in oklab, #4a86d0 14%, transparent);
+
+    --hero-from: #172a45;
+    --hero-to: #24497a;
+    --hero-fg: #eef3fa;
+    --hero-muted: rgb(238 243 250 / 0.66);
+    --hero-glass: rgb(255 255 255 / 0.09);
+    --hero-neg: #f4a892;
+    --hero-pos: #9fdcb9;
 
     --c-teal: #22a58c;
     --c-clay: #d9733f;
@@ -105,6 +128,8 @@
     --color-scrim: var(--scrim);
 
     --shadow-float: var(--shadow);
+    --shadow-card: var(--shadow-card);
+    --shadow-lift: var(--shadow-lift);
     --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 }
@@ -206,6 +231,36 @@
     }
     .chip[aria-pressed='true'] {
         @apply border-accent bg-accent text-accent-fg;
+    }
+
+    /* Kartu dasar: permukaan + garis tipis + bayangan lembut. */
+    .card {
+        @apply rounded-[22px] border border-line bg-surface shadow-card;
+    }
+    /* Kartu yang bisa diklik: sedikit terangkat saat disorot (desktop). */
+    .card-hover {
+        @apply transition-[box-shadow,transform,border-color] duration-200 ease-out-soft active:scale-[0.99] pointer:hover:-translate-y-0.5 pointer:hover:border-line-strong pointer:hover:shadow-lift;
+    }
+    .section-title {
+        @apply text-[15px] font-semibold tracking-[-0.01em];
+    }
+    .page-title {
+        @apply text-[26px] font-semibold tracking-[-0.03em] md:text-[32px];
+    }
+
+    /* Kartu saldo utama. */
+    .hero-card {
+        @apply relative isolate overflow-hidden rounded-[28px] text-(--hero-fg);
+        background:
+            radial-gradient(120% 90% at 100% 0%, rgb(255 255 255 / 0.14), transparent 55%),
+            radial-gradient(90% 80% at 0% 100%, rgb(0 0 0 / 0.18), transparent 60%),
+            linear-gradient(135deg, var(--hero-from), var(--hero-to));
+        box-shadow:
+            0 1px 0 rgb(255 255 255 / 0.12) inset,
+            0 22px 44px -22px color-mix(in oklab, var(--hero-from) 85%, transparent);
+    }
+    .hero-glass {
+        @apply bg-(--hero-glass) backdrop-blur-sm;
     }
 
     .eyebrow {

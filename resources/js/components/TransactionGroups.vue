@@ -26,16 +26,16 @@ const groups = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-col gap-5">
+    <div class="flex flex-col gap-4">
         <section v-for="group in groups" :key="group.date">
             <header
-                class="flex items-baseline justify-between py-2 md:px-2"
-                :class="sticky && 'sticky top-0 z-10 -mx-4 bg-paper/90 px-4 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:backdrop-blur-none'"
+                class="flex items-baseline justify-between px-1 py-2"
+                :class="sticky && 'sticky top-0 z-10 -mx-4 bg-paper/90 px-5 backdrop-blur-md md:static md:mx-0 md:bg-transparent md:px-1 md:backdrop-blur-none'"
             >
-                <h3 class="text-[13px] font-medium text-ink-2 first-letter:uppercase">{{ dayLabel(group.date) }}</h3>
-                <Money v-if="group.net" :value="group.net" :sign="true" class="text-[13px] text-muted tnum" />
+                <h3 class="text-[13px] font-semibold text-ink-2 first-letter:uppercase">{{ dayLabel(group.date) }}</h3>
+                <Money v-if="group.net" :value="group.net" :sign="true" class="text-[13px] font-medium text-muted tnum" />
             </header>
-            <TransitionGroup tag="div" name="list" class="relative divide-y divide-line md:divide-y-0">
+            <TransitionGroup tag="div" name="list" class="card relative divide-y divide-line overflow-hidden px-4 md:divide-y-0 md:px-1.5 md:py-1.5">
                 <TransactionRow v-for="t in group.items" :key="t.id" :transaction="t" />
             </TransitionGroup>
         </section>

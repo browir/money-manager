@@ -71,7 +71,7 @@ useShortcuts({
     <Head title="Transaksi" />
 
     <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 class="text-[26px] font-semibold tracking-[-0.025em] md:text-[30px]">Transaksi</h1>
+        <h1 class="page-title">Transaksi</h1>
         <MonthSwitcher :month="month" class="-mr-2" @change="(m) => apply({ month: m })" />
     </header>
 
@@ -83,7 +83,7 @@ useShortcuts({
                 ref="searchInput"
                 v-model="search"
                 type="search"
-                class="field pr-10 pl-10"
+                class="field h-12 rounded-2xl pr-10 pl-10 shadow-card"
                 placeholder="Cari catatan atau kategori…"
                 @keydown.esc="search = ''"
             />
@@ -128,15 +128,27 @@ useShortcuts({
     </div>
 
     <!-- Ringkasan -->
-    <p v-if="transactions.length" class="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted md:px-2">
-        <span>{{ transactions.length }} transaksi</span>
-        <span v-if="totals.income">Masuk <Money :value="totals.income" sign class="text-pos tnum" /></span>
-        <span v-if="totals.expense">Keluar <Money :value="-totals.expense" class="text-ink-2 tnum" /></span>
-    </p>
+    <div v-if="transactions.length" class="card mb-5 grid grid-cols-[0.7fr_1fr_1fr] divide-x divide-line py-3.5">
+        <div class="px-3 md:px-4">
+            <p class="text-[12px] text-muted">Transaksi</p>
+            <p class="mt-0.5 text-[15px] font-semibold md:text-[17px] tnum">{{ transactions.length }}</p>
+        </div>
+        <div class="min-w-0 px-3 md:px-4">
+            <p class="text-[12px] text-muted">Masuk</p>
+            <Money :value="totals.income" class="mt-0.5 block truncate text-[15px] font-semibold md:text-[17px] text-pos tnum" />
+        </div>
+        <div class="min-w-0 px-3 md:px-4">
+            <p class="text-[12px] text-muted">Keluar</p>
+            <Money :value="totals.expense" class="mt-0.5 block truncate text-[15px] font-semibold md:text-[17px] tnum" />
+        </div>
+    </div>
 
     <TransactionGroups v-if="transactions.length" :transactions="transactions" />
 
-    <div v-else class="rounded-2xl border border-dashed border-line px-4 py-14 text-center">
+    <div v-else class="card px-4 py-14 text-center">
+        <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-accent-soft text-accent-text">
+            <Search class="size-5" />
+        </span>
         <p class="mb-1 text-[15px] font-medium">{{ hasFilters ? 'Tidak ada yang cocok' : 'Belum ada transaksi' }}</p>
         <p class="mb-5 text-sm text-muted">
             {{ hasFilters ? 'Coba ubah kata kunci atau saringan.' : 'Catatan untuk bulan ini akan muncul di sini.' }}

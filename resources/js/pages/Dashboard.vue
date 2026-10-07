@@ -112,10 +112,13 @@ const heroVisible = ref(true);
 useIntersectionObserver(hero, ([entry]) => (heroVisible.value = entry.isIntersecting), { rootMargin: '-56px 0px 0px 0px' });
 
 const quickActions = [
-    { type: 'expense', label: 'Pengeluaran', icon: ArrowUpRight, bg: 'var(--accent-soft)', fg: 'var(--accent-text)' },
-    { type: 'income', label: 'Pemasukan', icon: ArrowDownLeft, bg: 'color-mix(in oklab, var(--pos) 14%, transparent)', fg: 'var(--pos)' },
-    { type: 'transfer', label: 'Transfer', icon: ArrowRightLeft, bg: 'var(--sunken)', fg: 'var(--ink-2)' },
+    { type: 'expense', label: 'Keluar', icon: ArrowUpRight },
+    { type: 'income', label: 'Masuk', icon: ArrowDownLeft },
+    { type: 'transfer', label: 'Transfer', icon: ArrowRightLeft },
 ];
+
+/** Latar kartu akun: gradasi warna identitas di atas permukaan. */
+const accountBg = (key) => `linear-gradient(150deg, ${tint(key, 20)}, ${tint(key, 5)}), var(--surface)`;
 
 function changeMonth(month) {
     router.get(route('dashboard'), month === currentMonth() ? {} : { month }, { preserveState: true, preserveScroll: true });
@@ -148,86 +151,115 @@ useShortcuts({
     </Teleport>
 
     <!-- Bilah atas -->
-    <header class="mb-7 flex items-center gap-3 md:mb-9">
+    <header class="mb-5 flex items-center gap-3 md:mb-7">
         <Link
             :href="route('settings')"
-            class="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-[14px] font-semibold text-accent-text transition active:scale-95"
+            class="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-[14px] font-semibold text-accent-text ring-2 ring-surface transition active:scale-95"
             aria-label="Pengaturan"
         >
             {{ initials || 'S' }}
         </Link>
         <div class="min-w-0 flex-1">
-            <p class="truncate text-[15px] leading-tight font-medium">{{ greeting }}, {{ firstName }}</p>
+            <p class="truncate text-[15px] leading-tight font-semibold">{{ greeting }}, {{ firstName }}</p>
             <p class="mt-0.5 text-[12px] text-muted first-letter:uppercase">{{ todayLong }}</p>
         </div>
-        <button
-            type="button"
-            class="icon-btn"
-            :aria-pressed="hidden"
-            :aria-label="hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal'"
-            :title="hidden ? 'Tampilkan nominal (H)' : 'Sembunyikan nominal (H)'"
-            @click="togglePrivacy"
-        >
-            <EyeOff v-if="hidden" class="size-5" />
-            <Eye v-else class="size-5" />
-        </button>
         <Link :href="route('transactions.index')" class="icon-btn -mr-2 md:hidden" aria-label="Cari transaksi">
             <Search class="size-5" />
         </Link>
     </header>
 
-    <!-- Saldo utama -->
-    <section ref="hero" class="mb-6 md:mb-10">
-        <p class="eyebrow mb-2">Total saldo</p>
-        <p class="text-[44px] leading-none font-semibold tracking-[-0.04em] md:text-[56px]" :class="netWorth < 0 && 'text-neg'">
-            <Money :value="netWorth" animate split-currency />
-        </p>
-        <p class="mt-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
-            <template v-if="isCurrentMonth && net !== 0">
-                <span class="inline-flex items-center gap-1" :class="net > 0 ? 'text-pos' : 'text-neg'">
-                    <component :is="net > 0 ? ArrowUpRight : ArrowDownRight" class="size-3.5" :stroke-width="2.2" />
-                    <Money :value="Math.abs(net)" class="font-medium" />
-                </span>
-                <span>bulan ini</span>
-                <span aria-hidden="true">·</span>
-            </template>
-            <Link :href="route('accounts.index')" class="hover:text-ink">{{ activeAccounts.length }} akun</Link>
-        </p>
-    </section>
-
-    <!-- Aksi cepat (HP) -->
-    <div class="mb-8 grid grid-cols-3 gap-2 md:hidden">
-        <button
-            v-for="action in quickActions"
-            :key="action.type"
-            type="button"
-            class="flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface pt-3.5 pb-3 transition active:scale-[0.96] active:bg-sunken"
-            @click="openQuickAdd({ type: action.type })"
+    <!-- Kartu saldo utama -->
+    <section ref="hero" class="hero-card mb-7 p-5 md:mb-9 md:p-7">
+        <!-- Ornamen: cahaya + logo besar samar -->
+        <span class="absolute -top-24 -right-20 -z-10 size-64 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
+        <svg
+            class="absolute -right-8 -bottom-14 -z-10 size-56 text-white opacity-[0.07] md:right-6 md:-bottom-20 md:size-72"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            aria-hidden="true"
         >
-            <span class="grid size-10 place-items-center rounded-full" :style="{ background: action.bg, color: action.fg }">
-                <component :is="action.icon" class="size-[19px]" :stroke-width="2.1" />
-            </span>
-            <span class="text-[13px] font-medium">{{ action.label }}</span>
-        </button>
-    </div>
+            <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
+        </svg>
+
+        <div class="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-10">
+            <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                    <p class="text-[13px] font-medium text-(--hero-muted)">Total saldo</p>
+                    <button
+                        type="button"
+                        class="grid size-7 place-items-center rounded-full text-(--hero-muted) transition-colors hover:bg-white/10 hover:text-(--hero-fg)"
+                        :aria-pressed="hidden"
+                        :aria-label="hidden ? 'Tampilkan nominal' : 'Sembunyikan nominal'"
+                        :title="hidden ? 'Tampilkan nominal (H)' : 'Sembunyikan nominal (H)'"
+                        @click="togglePrivacy"
+                    >
+                        <EyeOff v-if="hidden" class="size-4" />
+                        <Eye v-else class="size-4" />
+                    </button>
+                </div>
+                <p class="mt-1.5 text-[40px] leading-none font-semibold tracking-[-0.04em] md:text-[54px]" :class="netWorth < 0 && 'text-(--hero-neg)'">
+                    <Money :value="netWorth" animate split-currency />
+                </p>
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-[12px]">
+                    <span
+                        v-if="isCurrentMonth && net !== 0"
+                        class="hero-glass inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold"
+                        :class="net > 0 ? 'text-(--hero-pos)' : 'text-(--hero-neg)'"
+                    >
+                        <component :is="net > 0 ? ArrowUpRight : ArrowDownRight" class="size-3.5" :stroke-width="2.4" />
+                        <Money :value="Math.abs(net)" />
+                        <span class="font-normal text-(--hero-muted)">bulan ini</span>
+                    </span>
+                    <Link
+                        :href="route('accounts.index')"
+                        class="hero-glass rounded-full px-2.5 py-1 text-(--hero-muted) transition-colors hover:text-(--hero-fg)"
+                    >
+                        {{ activeAccounts.length }} akun
+                    </Link>
+                </div>
+            </div>
+
+            <!-- Aksi cepat -->
+            <div class="grid grid-cols-3 gap-2 md:w-[330px] md:shrink-0">
+                <button
+                    v-for="action in quickActions"
+                    :key="action.type"
+                    type="button"
+                    class="hero-glass flex flex-col items-center gap-1.5 rounded-2xl pt-3 pb-2.5 transition hover:bg-white/20 active:scale-[0.95]"
+                    @click="openQuickAdd({ type: action.type })"
+                >
+                    <span class="grid size-9 place-items-center rounded-full bg-white/15">
+                        <component :is="action.icon" class="size-[18px]" :stroke-width="2.2" />
+                    </span>
+                    <span class="text-[12px] font-medium">{{ action.label }}</span>
+                </button>
+            </div>
+        </div>
+    </section>
 
     <!-- Kartu akun yang bisa digeser (HP) -->
     <section class="mb-8 md:hidden">
         <div class="mb-3 flex items-baseline justify-between">
-            <h2 class="text-[15px] font-medium">Akun</h2>
-            <Link :href="route('accounts.index')" class="text-[13px] text-accent-text">Kelola</Link>
+            <h2 class="section-title">Akun</h2>
+            <Link :href="route('accounts.index')" class="text-[13px] font-medium text-accent-text">Kelola</Link>
         </div>
-        <div class="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1">
+        <div class="no-scrollbar -mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pt-1 pb-3">
             <Link
                 v-for="account in activeAccounts"
                 :key="account.id"
                 :href="route('transactions.index', { account: account.id })"
-                class="flex w-[46%] min-w-[156px] shrink-0 snap-start flex-col justify-between gap-7 rounded-[20px] p-4 transition active:scale-[0.97]"
-                :style="{ background: tint(account.color, 11) }"
+                class="relative isolate flex w-[46%] min-w-[156px] shrink-0 snap-start flex-col justify-between gap-6 overflow-hidden rounded-[20px] border border-line p-4 shadow-card transition active:scale-[0.97]"
+                :style="{ background: accountBg(account.color) }"
             >
+                <span class="absolute -top-10 -right-10 -z-10 size-28 rounded-full" :style="{ background: tint(account.color, 16) }" aria-hidden="true" />
                 <span class="flex items-center justify-between">
-                    <component :is="accountIcon(account.type)" class="size-5" :style="{ color: color(account.color) }" :stroke-width="1.9" />
-                    <span class="text-[11px] font-medium tracking-wide text-ink-2/80 uppercase">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
+                    <span class="grid size-9 place-items-center rounded-full bg-surface/85 shadow-card">
+                        <component :is="accountIcon(account.type)" class="size-[18px]" :style="{ color: color(account.color) }" :stroke-width="2" />
+                    </span>
+                    <span class="text-[10.5px] font-semibold tracking-wider text-ink-2/75 uppercase">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
                 </span>
                 <span class="min-w-0">
                     <span class="block truncate text-[13px] text-ink-2">{{ account.name }}</span>
@@ -249,21 +281,24 @@ useShortcuts({
         </div>
     </section>
 
-    <div class="grid gap-x-12 gap-y-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div class="flex min-w-0 flex-col gap-8">
+    <div class="grid gap-x-8 gap-y-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div class="flex min-w-0 flex-col gap-6">
             <DueRecurring v-if="isCurrentMonth && due.length" :items="due" />
 
             <!-- Arus kas bulan ini -->
-            <section class="rounded-[22px] border border-line bg-surface p-4 md:p-5">
+            <section class="card p-4 md:p-5">
                 <div class="mb-4 flex items-center justify-between">
-                    <h2 class="text-[15px] font-medium">Arus kas</h2>
+                    <h2 class="section-title">Arus kas</h2>
                     <MonthSwitcher :month="month" class="-mr-2" @change="changeMonth" />
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <p class="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted">
-                            <span class="size-1.5 rounded-full bg-pos" /> Masuk
+                        <p class="mb-2 flex items-center gap-2 text-[13px] text-muted">
+                            <span class="grid size-6 place-items-center rounded-full bg-pos/12 text-pos">
+                                <ArrowDownLeft class="size-3.5" :stroke-width="2.4" />
+                            </span>
+                            Masuk
                         </p>
                         <p class="text-[21px] font-semibold tracking-tight md:text-[24px]">
                             <Money :value="totals.income" animate />
@@ -274,8 +309,11 @@ useShortcuts({
                         </p>
                     </div>
                     <div>
-                        <p class="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted">
-                            <span class="size-1.5 rounded-full bg-ink" /> Keluar
+                        <p class="mb-2 flex items-center gap-2 text-[13px] text-muted">
+                            <span class="grid size-6 place-items-center rounded-full bg-neg/12 text-neg">
+                                <ArrowUpRight class="size-3.5" :stroke-width="2.4" />
+                            </span>
+                            Keluar
                         </p>
                         <p class="text-[21px] font-semibold tracking-tight md:text-[24px]">
                             <Money :value="totals.expense" animate />
@@ -311,8 +349,10 @@ useShortcuts({
             </section>
 
             <!-- Wawasan hari ini -->
-            <div v-if="todayStat" class="-mt-3 flex items-center gap-3 rounded-2xl bg-accent-soft/70 px-4 py-3">
-                <Sun class="size-[18px] shrink-0 text-accent-text" :stroke-width="2" />
+            <div v-if="todayStat" class="-mt-2 flex items-center gap-3 rounded-2xl border border-accent/10 bg-accent-soft/70 px-4 py-3">
+                <span class="grid size-8 shrink-0 place-items-center rounded-full bg-surface text-accent-text shadow-card">
+                    <Sun class="size-4" :stroke-width="2" />
+                </span>
                 <p class="text-[13px] leading-snug text-ink-2">
                     <template v-if="todayStat.spent">
                         Hari ini keluar <span class="amount font-semibold text-ink">{{ rupiah(todayStat.spent) }}</span>
@@ -328,9 +368,9 @@ useShortcuts({
             </div>
 
             <!-- Anggaran -->
-            <section v-if="budget" class="rounded-[22px] border border-line bg-surface p-4 md:p-5">
+            <section v-if="budget" class="card p-4 md:p-5">
                 <div class="mb-3 flex items-baseline justify-between">
-                    <h2 class="text-[15px] font-medium">Anggaran</h2>
+                    <h2 class="section-title">Anggaran</h2>
                     <Link :href="route('categories.index')" class="text-[13px] text-accent-text hover:underline">Atur</Link>
                 </div>
                 <template v-if="budget.left > 0">
@@ -360,14 +400,14 @@ useShortcuts({
                 </p>
             </section>
 
-            <div class="rounded-[22px] border border-line bg-surface p-4 md:border-0 md:bg-transparent md:p-0">
+            <div class="card p-4 md:p-5">
                 <DailyChart :month="month" :daily="daily" />
             </div>
 
             <!-- Terakhir -->
             <section>
                 <div class="mb-2 flex items-baseline justify-between">
-                    <h2 class="text-[15px] font-medium">Terakhir</h2>
+                    <h2 class="section-title">Terakhir</h2>
                     <Link
                         :href="route('transactions.index', isCurrentMonth ? {} : { month })"
                         class="text-[13px] text-accent-text hover:underline"
@@ -376,19 +416,22 @@ useShortcuts({
                     </Link>
                 </div>
                 <TransactionGroups v-if="recent.length" :transactions="recent" :sticky="false" />
-                <div v-else class="rounded-2xl border border-dashed border-line px-4 py-10 text-center">
+                <div v-else class="card px-4 py-10 text-center">
+                    <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-accent-soft text-accent-text">
+                        <Plus class="size-5" />
+                    </span>
                     <p class="mb-4 text-sm text-muted">Belum ada catatan di bulan ini.</p>
                     <button type="button" class="btn btn-quiet" @click="openQuickAdd()">Catat transaksi pertama</button>
                 </div>
             </section>
         </div>
 
-        <aside class="flex min-w-0 flex-col gap-10">
-            <CategoryBreakdown :month="month" :items="byCategory" :limit="5" />
+        <aside class="flex min-w-0 flex-col gap-6">
+            <CategoryBreakdown class="card p-4 md:p-5" :month="month" :items="byCategory" :limit="5" />
 
-            <section class="hidden md:block">
+            <section class="card hidden p-5 md:block">
                 <div class="mb-3 flex items-baseline justify-between">
-                    <h2 class="text-[15px] font-medium">Akun</h2>
+                    <h2 class="section-title">Akun</h2>
                     <Link :href="route('accounts.index')" class="text-[13px] text-accent-text hover:underline">Kelola</Link>
                 </div>
                 <ul class="-mx-2">

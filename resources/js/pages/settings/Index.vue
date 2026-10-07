@@ -39,29 +39,25 @@ const shortcuts = [
 <template>
     <Head title="Pengaturan" />
 
-    <h1 class="mb-8 text-[26px] font-semibold tracking-[-0.025em] md:text-[30px]">Pengaturan</h1>
+    <h1 class="page-title mb-6">Pengaturan</h1>
 
-    <div class="flex max-w-xl flex-col gap-10">
+    <div class="flex max-w-xl flex-col gap-5">
         <!-- Pintasan untuk HP (di desktop sudah ada di sidebar) -->
-        <Link
-            :href="route('categories.index')"
-            class="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 md:hidden"
-        >
-            <Layers class="size-5 text-ink-2" />
-            <span class="flex-1 text-[15px]">Kategori</span>
-            <ChevronRight class="size-4 text-muted" />
-        </Link>
-        <Link
-            :href="route('recurring.index')"
-            class="-mt-8 flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 md:hidden"
-        >
-            <Repeat class="size-5 text-ink-2" />
-            <span class="flex-1 text-[15px]">Transaksi berulang</span>
-            <ChevronRight class="size-4 text-muted" />
-        </Link>
+        <nav class="card divide-y divide-line overflow-hidden md:hidden">
+            <Link :href="route('categories.index')" class="flex items-center gap-3 px-4 py-3.5 active:bg-sunken">
+                <span class="grid size-9 place-items-center rounded-xl bg-accent-soft text-accent-text"><Layers class="size-[18px]" /></span>
+                <span class="flex-1 text-[15px] font-medium">Kategori</span>
+                <ChevronRight class="size-4 text-muted" />
+            </Link>
+            <Link :href="route('recurring.index')" class="flex items-center gap-3 px-4 py-3.5 active:bg-sunken">
+                <span class="grid size-9 place-items-center rounded-xl bg-accent-soft text-accent-text"><Repeat class="size-[18px]" /></span>
+                <span class="flex-1 text-[15px] font-medium">Transaksi berulang</span>
+                <ChevronRight class="size-4 text-muted" />
+            </Link>
+        </nav>
 
-        <section>
-            <h2 class="mb-3 text-[15px] font-medium">Tampilan</h2>
+        <section class="card p-5">
+            <h2 class="section-title mb-4">Tampilan</h2>
             <Segmented
                 :model-value="theme"
                 :options="[
@@ -73,8 +69,8 @@ const shortcuts = [
             />
         </section>
 
-        <section>
-            <h2 class="mb-3 text-[15px] font-medium">Profil</h2>
+        <section class="card p-5">
+            <h2 class="section-title mb-4">Profil</h2>
             <form class="flex flex-col gap-4" @submit.prevent="saveProfile">
                 <div>
                     <label class="field-label" for="name">Nama</label>
@@ -92,8 +88,8 @@ const shortcuts = [
             </form>
         </section>
 
-        <section>
-            <h2 class="mb-3 text-[15px] font-medium">Kata sandi</h2>
+        <section class="card p-5">
+            <h2 class="section-title mb-4">Kata sandi</h2>
             <form class="flex flex-col gap-4" @submit.prevent="savePassword">
                 <div>
                     <label class="field-label" for="current_password">Kata sandi saat ini</label>
@@ -117,9 +113,9 @@ const shortcuts = [
             </form>
         </section>
 
-        <section class="hidden pointer:block">
-            <h2 class="mb-3 text-[15px] font-medium">Pintasan keyboard</h2>
-            <dl class="divide-y divide-line rounded-2xl border border-line bg-surface text-sm">
+        <section class="card hidden p-5 pointer:block">
+            <h2 class="section-title mb-4">Pintasan keyboard</h2>
+            <dl class="-mx-5 -mb-5 divide-y divide-line border-t border-line text-sm">
                 <div v-for="[keys, label] in shortcuts" :key="keys" class="flex items-center justify-between px-4 py-2.5">
                     <dt class="text-ink-2">{{ label }}</dt>
                     <dd><kbd class="rounded-md border border-line bg-sunken px-1.5 py-0.5 font-mono text-[12px]">{{ keys }}</kbd></dd>
@@ -127,7 +123,7 @@ const shortcuts = [
             </dl>
         </section>
 
-        <Link :href="route('logout')" method="post" as="button" class="btn btn-ghost self-start px-0 text-neg hover:bg-transparent hover:text-neg">
+        <Link :href="route('logout')" method="post" as="button" class="card flex h-12 items-center justify-center gap-2 text-sm font-medium text-neg transition-colors hover:bg-sunken">
             <LogOut class="size-4" /> Keluar
         </Link>
     </div>

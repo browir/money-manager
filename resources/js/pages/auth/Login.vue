@@ -26,9 +26,13 @@ const ledger = [
 
     <div class="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
         <!-- Sisi kiri: pernyataan + buku kas -->
-        <aside class="relative hidden flex-col justify-between overflow-hidden border-r border-line p-12 lg:flex">
+        <aside class="hero-card relative m-3 hidden flex-col justify-between p-12 lg:flex">
+            <span class="absolute -top-32 -right-24 -z-10 size-96 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
+            <svg class="absolute -right-16 -bottom-24 -z-10 size-[420px] text-white opacity-[0.06]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
+            </svg>
             <div class="flex items-center gap-2.5">
-                <span class="grid size-7 place-items-center rounded-lg bg-accent text-accent-fg">
+                <span class="hero-glass grid size-8 place-items-center rounded-[10px]">
                     <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                         <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                     </svg>
@@ -39,33 +43,34 @@ const ledger = [
             <div>
                 <p class="max-w-md text-[44px] leading-[1.05] font-semibold tracking-[-0.04em]">
                     Setiap rupiah,<br />
-                    <span class="text-muted">tercatat dengan tenang.</span>
+                    <span class="text-(--hero-muted)">tercatat dengan tenang.</span>
                 </p>
 
                 <ul class="mt-12 max-w-md">
                     <li
                         v-for="([label, amount, type], i) in ledger"
                         :key="label"
-                        class="ledger-row flex items-baseline gap-3 border-b border-dashed border-line py-3 text-[15px]"
+                        class="ledger-row flex items-baseline gap-3 border-b border-dashed border-white/15 py-3 text-[15px]"
                         :style="{ animationDelay: `${120 + i * 90}ms` }"
                     >
-                        <span class="text-ink-2">{{ label }}</span>
+                        <span class="text-(--hero-fg)/85">{{ label }}</span>
                         <span class="flex-1" />
-                        <span class="tnum" :class="type === 'income' ? 'text-pos' : type === 'transfer' ? 'text-muted' : ''">
+                        <span class="tnum" :class="type === 'income' ? 'text-(--hero-pos)' : type === 'transfer' ? 'text-(--hero-muted)' : ''">
                             {{ type === 'income' ? '+' : type === 'expense' ? '−' : '' }}Rp {{ amount }}
                         </span>
                     </li>
                 </ul>
             </div>
 
-            <p class="text-[13px] text-muted">Buku kas pribadi.</p>
+            <p class="text-[13px] text-(--hero-muted)">Buku kas pribadi.</p>
         </aside>
 
         <!-- Form -->
-        <main class="flex items-center justify-center px-6 py-12">
+        <main class="relative isolate flex items-center justify-center px-6 py-12">
+            <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80" style="background: radial-gradient(70% 100% at 50% -20%, var(--glow), transparent 70%)" aria-hidden="true" />
             <form class="w-full max-w-[360px]" @submit.prevent="submit">
                 <div class="mb-10 flex items-center gap-2.5 lg:hidden">
-                    <span class="grid size-8 place-items-center rounded-lg bg-accent text-accent-fg">
+                    <span class="grid size-9 place-items-center rounded-[11px] bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_8px_18px_-8px_var(--hero-from)]">
                         <svg viewBox="0 0 24 24" class="size-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
                             <path d="M6 8.5c0-1.4 1.6-2.5 6-2.5s6 1.1 6 2.5S16.4 11 12 12s-6 2.1-6 3.5S7.6 18 12 18s6-1.1 6-2.5" />
                         </svg>
@@ -73,7 +78,7 @@ const ledger = [
                     <span class="text-[19px] font-semibold tracking-tight">Sisih</span>
                 </div>
 
-                <h1 class="mb-1.5 text-[26px] font-semibold tracking-[-0.025em]">Masuk</h1>
+                <h1 class="page-title mb-1.5">Masuk</h1>
                 <p class="mb-8 text-[15px] text-muted">Lanjutkan mencatat keuanganmu.</p>
 
                 <div class="mb-4">

@@ -12,6 +12,7 @@ import Sheet from '@/components/ui/Sheet.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { ACCOUNT_TYPES, accountIcon } from '@/lib/icons';
+import { color, tint } from '@/lib/palette';
 
 const { accounts, activeAccounts, netWorth } = useLedger();
 const archived = computed(() => accounts.value.filter((a) => a.archived));
@@ -51,48 +52,67 @@ function destroy() {
 <template>
     <Head title="Akun" />
 
-    <header class="mb-8 flex items-end justify-between gap-4">
-        <div>
-            <h1 class="mb-3 text-[26px] font-semibold tracking-[-0.025em] md:text-[30px]">Akun</h1>
-            <p class="eyebrow mb-1">Total saldo</p>
-            <p class="text-[28px] font-semibold tracking-[-0.03em]" :class="netWorth < 0 && 'text-neg'">
-                <Money :value="netWorth" animate />
-            </p>
-        </div>
-        <div class="flex gap-2">
+    <header class="mb-5 flex items-center justify-between gap-4">
+        <h1 class="page-title">Akun</h1>
+        <button type="button" class="btn btn-primary" @click="edit()"><Plus class="size-4" /> Akun</button>
+    </header>
+
+    <section class="hero-card mb-6 p-5 md:p-7">
+        <span class="absolute -top-24 -right-20 -z-10 size-64 rounded-full bg-white/10 blur-3xl" aria-hidden="true" />
+        <div class="flex flex-wrap items-end justify-between gap-4">
+            <div>
+                <p class="text-[13px] font-medium text-(--hero-muted)">Total saldo · {{ activeAccounts.length }} akun</p>
+                <p class="mt-1.5 text-[34px] leading-none font-semibold tracking-[-0.035em] md:text-[42px]" :class="netWorth < 0 && 'text-(--hero-neg)'">
+                    <Money :value="netWorth" animate />
+                </p>
+            </div>
             <button
                 v-if="activeAccounts.length > 1"
                 type="button"
-                class="btn btn-quiet"
-                title="Transfer antar akun"
+                class="hero-glass inline-flex h-10 items-center gap-2 rounded-xl px-4 text-sm font-medium transition hover:bg-white/20 active:scale-[0.97]"
                 @click="openQuickAdd({ type: 'transfer' })"
             >
-                <ArrowRightLeft class="size-4" /> <span class="hidden sm:inline">Transfer</span>
+                <ArrowRightLeft class="size-4" /> Transfer antar akun
             </button>
-            <button type="button" class="btn btn-primary" @click="edit()"><Plus class="size-4" /> Akun</button>
         </div>
-    </header>
+        <!-- Porsi saldo per akun -->
+        <div v-if="netWorth > 0" class="mt-5 flex h-2 gap-[3px] overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+            <span
+                v-for="account in activeAccounts.filter((a) => a.balance > 0)"
+                :key="account.id"
+                class="h-full first:rounded-l-full last:rounded-r-full"
+                :style="{ flexGrow: account.balance, flexBasis: 0, background: color(account.color) }"
+            />
+        </div>
+    </section>
 
-    <TransitionGroup tag="ul" name="list" class="relative grid gap-3 sm:grid-cols-2">
+    <TransitionGroup tag="ul" name="list" class="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <li v-for="account in activeAccounts" :key="account.id">
             <button
                 type="button"
-                class="group flex w-full flex-col gap-6 rounded-2xl border border-line bg-surface p-4 text-left transition-[border-color,transform] hover:border-line-strong active:scale-[0.99] md:p-5"
+                class="card card-hover relative isolate flex w-full flex-col gap-7 overflow-hidden p-4 text-left md:p-5"
+                :style="{ background: `linear-gradient(150deg, ${tint(account.color, 16)}, ${tint(account.color, 3)} 60%), var(--surface)` }"
                 @click="edit(account)"
             >
+                <span class="absolute -top-12 -right-12 -z-10 size-32 rounded-full" :style="{ background: tint(account.color, 14) }" aria-hidden="true" />
                 <span class="flex w-full items-center gap-3">
-                    <IconTile :icon="accountIcon(account.type)" :color="account.color" />
+                    <span class="grid size-10 place-items-center rounded-full bg-surface/85 shadow-card">
+                        <component :is="accountIcon(account.type)" class="size-[18px]" :style="{ color: color(account.color) }" :stroke-width="2" />
+                    </span>
                     <span class="min-w-0 flex-1">
-                        <span class="block truncate text-[15px] font-medium">{{ account.name }}</span>
-                        <span class="block text-[13px] text-muted">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
+                        <span class="block truncate text-[15px] font-semibold">{{ account.name }}</span>
+                        <span class="block text-[12px] text-muted">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
                     </span>
                 </span>
-                <Money
-                    :value="account.balance"
-                    animate
-                    class="text-[22px] font-semibold tracking-[-0.02em]"
-                    :class="account.balance < 0 && 'text-neg'"
-                />
+                <span>
+                    <span class="block text-[12px] text-muted">Saldo</span>
+                    <Money
+                        :value="account.balance"
+                        animate
+                        class="text-[24px] font-semibold tracking-[-0.025em]"
+                        :class="account.balance < 0 && 'text-neg'"
+                    />
+                </span>
             </button>
         </li>
     </TransitionGroup>
@@ -102,7 +122,7 @@ function destroy() {
             <ChevronDown class="size-4 transition-transform" :class="!showArchived && '-rotate-90'" />
             Diarsipkan ({{ archived.length }})
         </button>
-        <ul v-if="showArchived" class="divide-y divide-line">
+        <ul v-if="showArchived" class="card divide-y divide-line px-4">
             <li v-for="account in archived" :key="account.id">
                 <button type="button" class="flex w-full items-center gap-3 py-3 text-left opacity-70 hover:opacity-100" @click="edit(account)">
                     <IconTile :icon="accountIcon(account.type)" :color="account.color" size="sm" />

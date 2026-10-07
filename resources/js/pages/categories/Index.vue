@@ -63,7 +63,7 @@ function destroy() {
     <Head title="Kategori" />
 
     <header class="mb-6 flex items-center justify-between gap-4">
-        <h1 class="text-[26px] font-semibold tracking-[-0.025em] md:text-[30px]">Kategori</h1>
+        <h1 class="page-title">Kategori</h1>
         <button type="button" class="btn btn-primary" @click="edit()"><Plus class="size-4" /> Kategori</button>
     </header>
 
@@ -76,8 +76,8 @@ function destroy() {
         class="mb-5 max-w-sm"
     />
 
-    <TransitionGroup tag="ul" name="list" class="relative grid gap-x-6 md:grid-cols-2">
-        <li v-for="category in list" :key="category.id" class="border-b border-line">
+    <TransitionGroup tag="ul" name="list" class="card relative grid gap-x-6 px-4 md:grid-cols-2 md:px-5">
+        <li v-for="category in list" :key="category.id" class="border-b border-line last:border-b-0 md:[&:nth-last-child(2)]:border-b-0">
             <button type="button" class="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80" @click="edit(category)">
                 <IconTile :icon="categoryIcon(category.icon)" :color="category.color" />
                 <span class="min-w-0 flex-1">
