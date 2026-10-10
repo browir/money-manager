@@ -58,3 +58,30 @@ export function daysInMonth(month) {
     const d = fromIso(month + '-01');
     return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 }
+
+/* ---- Periode bulanan yang dimulai di tanggal gajian ----
+   Kunci periode = bulan saat periode dimulai: dengan awal tanggal 25,
+   "2026-10" = 25 Okt – 24 Nov. Awal tanggal 1 = bulan kalender biasa. */
+
+/** Rentang periode, { start, end } dalam ISO. */
+export function periodRange(key, startDay = 1) {
+    const start = `${key}-${pad(startDay)}`;
+    return { start, end: addDays(`${shiftMonth(key, 1)}-${pad(startDay)}`, -1) };
+}
+
+/** Kunci periode yang memuat tanggal ISO. */
+export function periodOf(iso, startDay = 1) {
+    const month = iso.slice(0, 7);
+    return Number(iso.slice(8)) >= startDay ? month : shiftMonth(month, -1);
+}
+
+/** "25 Okt – 24 Nov" (hanya bermakna bila awal periode bukan tanggal 1). */
+export function periodRangeLabel(key, startDay = 1) {
+    const { start, end } = periodRange(key, startDay);
+    return `${shortDate(start)} – ${shortDate(end)}`;
+}
+
+/** Jumlah hari dari a sampai b, inklusif. */
+export function daysBetween(a, b) {
+    return Math.round((fromIso(b) - fromIso(a)) / 86_400_000) + 1;
+}

@@ -11,14 +11,27 @@ class TransactionController extends Controller
 {
     use ValidatesTransactionFields;
 
+    /** Batas baris untuk rentang panjang (semua waktu / pilih tanggal); total tetap dihitung penuh. */
+    private const LIST_LIMIT = 500;
+
     public function index(Request $request)
     {
         $user = $request->user();
-        $month = $this->month($request->query('month'));
+        $period = $user->period($request->query('month'));
         $filters = $request->only(['type', 'account', 'category', 'q']);
 
-        $transactions = $user->transactions()
-            ->whereBetween('occurred_on', [$month->toDateString(), $month->endOfMonth()->toDateString()])
+        // Rentang: periode (bawaan), semua waktu (?all=1), atau tanggal bebas (?from=&to=).
+        $date = fn (string $key) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->query($key)) ? $request->query($key) : null;
+        [$from, $to] = [$date('from'), $date('to')];
+        if ($from && $to && $from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+        $mode = $request->boolean('all') ? 'all' : ($from || $to ? 'custom' : 'period');
+
+        $query = $user->transactions()
+            ->when($mode === 'period', fn ($q) => $q->whereBetween('occurred_on', $period->range()))
+            ->when($mode === 'custom' && $from, fn ($q) => $q->where('occurred_on', '>=', $from))
+            ->when($mode === 'custom' && $to, fn ($q) => $q->where('occurred_on', '<=', $to))
             ->when($filters['type'] ?? null, fn ($q, $type) => $q->where('type', $type))
             ->when($filters['account'] ?? null, fn ($q, $id) => $q->where(
                 fn ($q) => $q->where('account_id', $id)->orWhere('to_account_id', $id)
@@ -29,15 +42,31 @@ class TransactionController extends Controller
                 $like = '%'.mb_strtolower($term).'%';
                 $q->whereRaw('LOWER(note) LIKE ?', [$like])
                     ->orWhereHas('category', fn ($c) => $c->whereRaw('LOWER(name) LIKE ?', [$like]));
-            }))
+            }));
+
+        $totals = (clone $query)
+            ->selectRaw('COUNT(*) AS count')
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income")
+            ->selectRaw("COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expense")
+            ->toBase()
+            ->first();
+
+        $transactions = $query
             ->orderByDesc('occurred_on')
             ->orderByDesc('id')
+            ->when($mode !== 'period', fn ($q) => $q->limit(self::LIST_LIMIT))
             ->get()
             ->map->toListItem();
 
         return Inertia::render('transactions/Index', [
-            'month' => $month->format('Y-m'),
+            'month' => $period->key(),
             'filters' => (object) array_filter($filters),
+            'range' => ['mode' => $mode, 'from' => $from, 'to' => $to],
+            'totals' => [
+                'count' => (int) $totals->count,
+                'income' => (int) $totals->income,
+                'expense' => (int) $totals->expense,
+            ],
             'transactions' => $transactions,
         ]);
     }

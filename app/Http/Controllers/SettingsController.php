@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\Period;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -24,6 +25,22 @@ class SettingsController extends Controller
         ]));
 
         Inertia::flash('toast', ['message' => 'Profil diperbarui']);
+
+        return back();
+    }
+
+    /** Tanggal awal periode bulanan (tanggal gajian). */
+    public function updatePeriod(Request $request)
+    {
+        $data = $request->validate([
+            'period_start' => ['required', 'integer', 'min:1', 'max:'.Period::MAX_START_DAY],
+        ], [
+            'period_start.max' => 'Pilih tanggal 1 sampai '.Period::MAX_START_DAY.'.',
+        ]);
+
+        $request->user()->update($data);
+
+        Inertia::flash('toast', ['message' => 'Awal periode disimpan']);
 
         return back();
     }

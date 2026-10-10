@@ -17,7 +17,8 @@ import { togglePrivacy, usePrivacy } from '@/composables/usePrivacy';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
 import { useShortcuts } from '@/composables/useShortcuts';
-import { currentMonth, daysInMonth, monthLabel, shiftMonth, today } from '@/lib/dates';
+import { daysBetween, monthLabel, shiftMonth, today } from '@/lib/dates';
+import { usePeriod } from '@/composables/usePeriod';
 import { ACCOUNT_TYPES, accountIcon } from '@/lib/icons';
 import { color, tint } from '@/lib/palette';
 import SisihMark from '@/components/ui/SisihMark.vue';
@@ -58,7 +59,8 @@ const greeting = (() => {
 const todayLong = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
 /* ---- Bulan ---- */
-const isCurrentMonth = computed(() => props.month === currentMonth());
+const period = usePeriod();
+const isCurrentMonth = computed(() => props.month === period.current.value);
 const net = computed(() => props.totals.income - props.totals.expense);
 
 function delta(now, before) {
@@ -80,9 +82,10 @@ const ratioText = computed(() => {
 /* ---- Wawasan hari ini (hanya bulan berjalan) ---- */
 const todayStat = computed(() => {
     if (!isCurrentMonth.value) return null;
-    const day = Number(today().slice(8));
-    const spent = props.daily[day - 1]?.expense ?? 0;
-    const before = props.daily.slice(0, day - 1);
+    const index = props.daily.findIndex((d) => d.date === today());
+    if (index < 0) return null;
+    const spent = props.daily[index].expense;
+    const before = props.daily.slice(0, index);
     const avg = before.length ? before.reduce((s, d) => s + d.expense, 0) / before.length : 0;
     return { spent, avg, diff: avg ? Math.round(((spent - avg) / avg) * 100) : null };
 });
@@ -96,7 +99,7 @@ const budget = computed(() => {
     const total = list.reduce((s, c) => s + c.budget, 0);
     const spent = list.reduce((s, c) => s + c.spent, 0);
     const left = total - spent;
-    const daysLeft = daysInMonth(props.month) - Number(today().slice(8)) + 1;
+    const daysLeft = daysBetween(today(), period.range(props.month).end);
     return {
         total,
         spent,
@@ -124,12 +127,12 @@ const quickActions = [
 const accountBg = (key) => `linear-gradient(150deg, ${tint(key, 20)}, ${tint(key, 5)}), var(--surface)`;
 
 function changeMonth(month) {
-    router.get(route('dashboard'), month === currentMonth() ? {} : { month }, { preserveState: true, preserveScroll: true });
+    router.get(route('dashboard'), month === period.current.value ? {} : { month }, { preserveState: true, preserveScroll: true });
 }
 
 useShortcuts({
     arrowleft: () => changeMonth(shiftMonth(props.month, -1)),
-    arrowright: () => props.month < currentMonth() && changeMonth(shiftMonth(props.month, 1)),
+    arrowright: () => props.month < period.current.value && changeMonth(shiftMonth(props.month, 1)),
     h: togglePrivacy,
 });
 </script>
@@ -164,7 +167,7 @@ useShortcuts({
         </Link>
         <div class="min-w-0 flex-1">
             <p class="truncate text-[15px] leading-tight font-semibold">{{ greeting }}, {{ firstName }}</p>
-            <p class="mt-0.5 text-[12px] text-muted first-letter:uppercase">{{ todayLong }}</p>
+            <p class="mt-0.5 text-small text-muted first-letter:uppercase">{{ todayLong }}</p>
         </div>
         <Link :href="route('transactions.index')" class="icon-btn -mr-2 md:hidden" aria-label="Cari transaksi">
             <Search class="size-5" />
@@ -206,8 +209,8 @@ useShortcuts({
                 >
                     <Money :value="netWorth" animate split-currency :reveal="peek" />
                 </p>
-                <p v-if="hidden" class="mt-2 text-[11px] text-(--hero-muted)">Tahan angka untuk mengintip</p>
-                <div class="mt-4 flex flex-wrap items-center gap-2 text-[12px]">
+                <p v-if="hidden" class="mt-2 text-tiny text-(--hero-muted)">Tahan angka untuk mengintip</p>
+                <div class="mt-4 flex flex-wrap items-center gap-2 text-small">
                     <span
                         v-if="isCurrentMonth && net !== 0"
                         class="hero-glass inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold"
@@ -215,7 +218,7 @@ useShortcuts({
                     >
                         <component :is="net > 0 ? ArrowUpRight : ArrowDownRight" class="size-3.5" :stroke-width="2.4" />
                         <Money :value="Math.abs(net)" />
-                        <span class="font-normal text-(--hero-muted)">bulan ini</span>
+                        <span class="font-normal text-(--hero-muted)">{{ period.thisLabel.value }}</span>
                     </span>
                     <Link
                         :href="route('accounts.index')"
@@ -238,7 +241,7 @@ useShortcuts({
                     <span class="grid size-9 place-items-center rounded-full bg-white/15">
                         <component :is="action.icon" class="size-[18px]" :stroke-width="2.2" />
                     </span>
-                    <span class="text-[12px] font-medium">{{ action.label }}</span>
+                    <span class="text-small font-medium">{{ action.label }}</span>
                 </button>
             </div>
         </div>
@@ -265,7 +268,7 @@ useShortcuts({
                     <span class="grid size-9 place-items-center rounded-full bg-surface/85 shadow-card">
                         <component :is="accountIcon(account.type)" class="size-[18px]" :style="{ color: color(account.color) }" :stroke-width="2" />
                     </span>
-                    <span class="text-[10.5px] font-semibold tracking-wider text-ink-2/75 uppercase">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
+                    <span class="text-2xs font-semibold tracking-wider text-ink-2/75 uppercase">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
                 </span>
                 <span class="min-w-0">
                     <span class="block truncate text-[13px] text-ink-2">{{ account.name }}</span>
@@ -309,7 +312,7 @@ useShortcuts({
                         <p class="text-[21px] font-semibold tracking-tight md:text-[24px]">
                             <Money :value="totals.income" animate />
                         </p>
-                        <p v-if="incomeDelta !== null" class="mt-1 flex items-center gap-1 text-[12px] text-muted">
+                        <p v-if="incomeDelta !== null" class="mt-1 flex items-center gap-1 text-small text-muted">
                             <component :is="incomeDelta >= 0 ? ArrowUpRight : ArrowDownRight" class="size-3.5" />
                             {{ Math.abs(incomeDelta) }}% vs {{ prevLabel }}
                         </p>
@@ -326,7 +329,7 @@ useShortcuts({
                         </p>
                         <p
                             v-if="expenseDelta !== null"
-                            class="mt-1 flex items-center gap-1 text-[12px]"
+                            class="mt-1 flex items-center gap-1 text-small"
                             :class="expenseDelta > 0 ? 'text-neg' : 'text-pos'"
                         >
                             <component :is="expenseDelta >= 0 ? ArrowUpRight : ArrowDownRight" class="size-3.5" />
@@ -345,7 +348,7 @@ useShortcuts({
                             }"
                         />
                     </div>
-                    <p class="mt-2 flex items-center justify-between gap-3 text-[12px] text-muted">
+                    <p class="mt-2 flex items-center justify-between gap-3 text-small text-muted">
                         <span>{{ ratioText }}</span>
                         <span class="whitespace-nowrap">
                             Selisih <Money :value="net" sign class="font-medium" :class="net >= 0 ? 'text-pos' : 'text-neg'" />
@@ -384,14 +387,14 @@ useShortcuts({
                     <p class="mt-0.5 text-[24px] font-semibold tracking-tight">
                         <Money :value="budget.perDay" animate /><span class="text-[15px] font-medium text-muted"> /hari</span>
                     </p>
-                    <p class="mt-1 text-[12px] text-muted">
+                    <p class="mt-1 text-small text-muted">
                         Sisa <Money :value="budget.left" class="font-medium text-ink-2" /> untuk {{ budget.daysLeft }} hari lagi
                     </p>
                 </template>
                 <template v-else>
                     <p class="text-[13px] text-muted">Anggaran terlampaui</p>
                     <p class="mt-0.5 text-[24px] font-semibold tracking-tight text-neg"><Money :value="-budget.left" /></p>
-                    <p class="mt-1 text-[12px] text-muted">di atas total anggaran bulan ini</p>
+                    <p class="mt-1 text-small text-muted">di atas total anggaran {{ period.thisLabel.value }}</p>
                 </template>
                 <div class="mt-4 h-2 overflow-hidden rounded-full bg-sunken" role="presentation">
                     <div
@@ -400,13 +403,13 @@ useShortcuts({
                         :style="{ width: `${Math.min(100, budget.ratio * 100)}%` }"
                     />
                 </div>
-                <p class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] text-muted">
+                <p class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-small text-muted">
                     <span>Terpakai <Money :value="budget.spent" /> dari <Money :value="budget.total" /></span>
                     <span v-if="budget.overCount" class="rounded-full bg-neg/10 px-2 py-0.5 font-medium whitespace-nowrap text-neg">
                         {{ budget.overCount }} kategori lewat
                     </span>
                 </p>
-                <p v-if="budget.urgent" class="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
+                <p v-if="budget.urgent" class="mt-3 flex items-center gap-2 border-t border-line pt-3 text-small text-muted">
                     <Siren class="size-3.5 shrink-0 text-neg" :stroke-width="2.2" />
                     <span>Darurat <Money :value="budget.urgent" class="font-medium text-ink-2" /> · di luar anggaran</span>
                 </p>
@@ -432,7 +435,7 @@ useShortcuts({
                     <span class="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-accent-soft text-accent-text">
                         <Plus class="size-5" />
                     </span>
-                    <p class="mb-4 text-sm text-muted">Belum ada catatan di bulan ini.</p>
+                    <p class="mb-4 text-sm text-muted">Belum ada catatan di {{ period.thisLabel.value }}.</p>
                     <button type="button" class="btn btn-quiet" @click="openQuickAdd()">Catat transaksi pertama</button>
                 </div>
             </section>

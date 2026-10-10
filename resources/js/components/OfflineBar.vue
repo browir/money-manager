@@ -61,7 +61,7 @@ function fix(item) {
                 <li v-for="item in items" :key="item.client_id" class="flex items-center gap-3 py-2">
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-ink">{{ item.summary.title }}</span>
-                        <span v-if="item.error" class="block text-[12px] text-neg">{{ item.error }}</span>
+                        <span v-if="item.error" class="block text-small text-neg">{{ item.error }}</span>
                     </span>
                     <Money
                         :value="item.summary.type === 'expense' ? -item.summary.amount : item.summary.amount"

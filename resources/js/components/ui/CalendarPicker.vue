@@ -80,7 +80,7 @@ function onUp(e) {
             </button>
         </div>
 
-        <div class="grid grid-cols-7 text-center text-[11px] font-medium text-muted">
+        <div class="grid grid-cols-7 text-center text-tiny font-medium text-muted">
             <span v-for="w in WEEKDAYS" :key="w" class="py-1">{{ w }}</span>
         </div>
 

@@ -5,7 +5,7 @@ import { route } from 'ziggy-js';
 import IconTile from '@/components/ui/IconTile.vue';
 import Money from '@/components/ui/Money.vue';
 import { useLedger } from '@/composables/useLedger';
-import { currentMonth } from '@/lib/dates';
+import { usePeriod } from '@/composables/usePeriod';
 import { categoryIcon } from '@/lib/icons';
 import { color } from '@/lib/palette';
 
@@ -19,8 +19,9 @@ const props = defineProps({
 const expanded = ref(false);
 
 const { categories, categoryById } = useLedger();
-// Anggaran berlaku per bulan dengan nilai saat ini, jadi hanya ditampilkan untuk bulan berjalan.
-const showBudget = computed(() => props.month === currentMonth());
+// Anggaran berlaku per periode dengan nilai saat ini, jadi hanya ditampilkan untuk periode berjalan.
+const period = usePeriod();
+const showBudget = computed(() => props.month === period.current.value);
 const hasBudgets = computed(() => categories.value.some((c) => c.budget));
 const total = computed(() => props.items.reduce((s, i) => s + i.total, 0));
 
@@ -97,7 +98,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                                     :style="{ width: `${Math.min(100, (row.total / row.budget) * 100)}%` }"
                                 />
                             </span>
-                            <span class="mt-1 flex items-baseline justify-between gap-3 text-[12px] tnum">
+                            <span class="mt-1 flex items-baseline justify-between gap-3 text-small tnum">
                                 <span v-if="row.budget" class="truncate" :class="row.total > row.budget ? 'text-neg' : 'text-muted'">
                                     <template v-if="row.total > row.budget">Lewat <Money :value="row.total - row.budget" /></template>
                                     <template v-else>Sisa <Money :value="row.budget - row.total" /></template>
@@ -120,7 +121,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
             </button>
         </template>
         <p v-else class="rounded-2xl bg-sunken/60 px-4 py-8 text-center text-sm text-muted">
-            Belum ada pengeluaran bulan ini.
+            Belum ada pengeluaran {{ period.thisLabel.value }}.
         </p>
     </section>
 </template>

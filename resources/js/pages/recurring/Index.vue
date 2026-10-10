@@ -177,7 +177,7 @@ onMounted(() => {
                         class="block text-[15px] font-medium tnum"
                         :class="{ 'text-pos': r.type === 'income', 'text-ink-2': r.type === 'transfer' }"
                     />
-                    <span class="mt-0.5 block text-[12px]" :class="daysUntil(r.next_due) <= 0 ? 'font-medium text-accent-text' : 'text-muted'">
+                    <span class="mt-0.5 block text-small" :class="daysUntil(r.next_due) <= 0 ? 'font-medium text-accent-text' : 'text-muted'">
                         {{ dueLabel(r.next_due) }}
                     </span>
                 </span>
@@ -292,7 +292,7 @@ onMounted(() => {
                     class="mt-3"
                     @picked="showCalendar = false"
                 />
-                <p class="mt-1.5 text-[12px] text-muted">Tanggal ini juga menjadi patokan periode berikutnya.</p>
+                <p class="mt-1.5 text-small text-muted">Tanggal ini juga menjadi patokan periode berikutnya.</p>
                 <p v-if="form.errors.next_due" class="field-error">{{ form.errors.next_due }}</p>
             </div>
         </form>
@@ -313,7 +313,7 @@ onMounted(() => {
                     {{ editing ? 'Simpan perubahan' : 'Buat jadwal' }}
                 </button>
             </div>
-            <p v-if="confirmDelete" class="mt-2 text-[12px] text-muted">Transaksi yang sudah tercatat tidak ikut terhapus.</p>
+            <p v-if="confirmDelete" class="mt-2 text-small text-muted">Transaksi yang sudah tercatat tidak ikut terhapus.</p>
         </template>
     </Sheet>
 </template>

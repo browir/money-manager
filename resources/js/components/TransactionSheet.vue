@@ -13,7 +13,8 @@ import { enqueue, newClientId } from '@/composables/useOutbox';
 import { pushToast } from '@/composables/useToast';
 import { closeQuickAdd, openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { useLedger } from '@/composables/useLedger';
-import { addDays, currentMonth, dayLabel, today } from '@/lib/dates';
+import { addDays, dayLabel, today } from '@/lib/dates';
+import { usePeriod } from '@/composables/usePeriod';
 import { accountIcon, categoryIcon } from '@/lib/icons';
 import { digits, evaluate, formatExpr, hasOperator, pressKey } from '@/lib/money';
 import { color, tint } from '@/lib/palette';
@@ -76,13 +77,15 @@ function pickSuggestion(s) {
     if (!form.category_id && categoryById.value[s.category_id]) form.category_id = s.category_id;
 }
 
-/* ---- Sisa anggaran kategori (hanya bulan berjalan; "spent" dari server) ---- */
+/* ---- Sisa anggaran kategori (hanya periode berjalan; "spent" dari server) ---- */
+const period = usePeriod();
+const inCurrentPeriod = (iso) => period.of(iso) === period.current.value;
 const budgetHint = computed(() => {
     const c = categoryById.value[form.category_id];
     if (form.type === 'expense' && c?.urgent) return { urgent: true };
-    if (form.type !== 'expense' || !c?.budget || form.occurred_on.slice(0, 7) !== currentMonth()) return null;
+    if (form.type !== 'expense' || !c?.budget || !inCurrentPeriod(form.occurred_on)) return null;
     const e = editing.value;
-    const already = e && e.type === 'expense' && e.category_id === c.id && e.occurred_on.slice(0, 7) === currentMonth() ? e.amount : 0;
+    const already = e && e.type === 'expense' && e.category_id === c.id && inCurrentPeriod(e.occurred_on) ? e.amount : 0;
     const left = c.budget - (c.spent - already) - amount.value;
     return { name: c.name, left, over: left < 0 };
 });
@@ -414,7 +417,7 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
                     {{ category.name }}
                 </button>
             </div>
-            <p v-if="budgetHint" class="mt-2 text-[12px]" :class="budgetHint.over ? 'text-neg' : 'text-muted'">
+            <p v-if="budgetHint" class="mt-2 text-small" :class="budgetHint.over ? 'text-neg' : 'text-muted'">
                 <template v-if="budgetHint.urgent">Darurat: tidak mengurangi anggaran bulanan</template>
                 <template v-else-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} <Money :value="-budgetHint.left" /></template>
                 <template v-else>Sisa anggaran {{ budgetHint.name }}: <Money :value="budgetHint.left" /></template>

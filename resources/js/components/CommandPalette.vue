@@ -96,13 +96,13 @@ function onKey(e) {
                         placeholder="Ketik perintah atau cari catatan…"
                         @keydown="onKey"
                     />
-                    <kbd class="rounded-md border border-line px-1.5 py-0.5 font-mono text-[11px] text-muted">Esc</kbd>
+                    <kbd class="rounded-md border border-line px-1.5 py-0.5 font-mono text-tiny text-muted">Esc</kbd>
                 </div>
                 <ul class="max-h-[50vh] overflow-y-auto p-2" role="listbox">
                     <template v-for="(command, i) in results" :key="command.label">
                         <li
                             v-if="i === 0 || results[i - 1].group !== command.group"
-                            class="px-3 pt-2.5 pb-1.5 text-[11px] font-medium tracking-[0.08em] text-muted uppercase"
+                            class="px-3 pt-2.5 pb-1.5 text-tiny font-medium tracking-[0.08em] text-muted uppercase"
                         >
                             {{ command.group }}
                         </li>
@@ -116,7 +116,7 @@ function onKey(e) {
                         >
                             <component :is="command.icon" class="size-4 shrink-0" :stroke-width="1.9" />
                             <span class="flex-1 truncate">{{ command.label }}</span>
-                            <kbd v-if="command.hint" class="font-mono text-[11px] text-muted">{{ command.hint }}</kbd>
+                            <kbd v-if="command.hint" class="font-mono text-tiny text-muted">{{ command.hint }}</kbd>
                         </li>
                     </template>
                 </ul>

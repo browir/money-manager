@@ -6,13 +6,16 @@ import { rupiah } from '@/lib/money';
 
 const props = defineProps({
     month: { type: String, required: true },
-    daily: { type: Array, required: true }, // [{ day, income, expense }]
+    daily: { type: Array, required: true }, // [{ date, day, income, expense }]
 });
 
 const active = ref(null);
 const todayIso = today();
-const isCurrentMonth = computed(() => todayIso.startsWith(props.month));
-const lastDay = computed(() => (isCurrentMonth.value ? Number(todayIso.slice(8)) : props.daily.length));
+/** Jumlah hari yang sudah lewat di periode ini (periode berjalan: sampai hari ini). */
+const lastDay = computed(() => {
+    const index = props.daily.findIndex((d) => d.date === todayIso);
+    return index >= 0 ? index + 1 : props.daily[0]?.date > todayIso ? 0 : props.daily.length;
+});
 
 /** Skala dibulatkan ke angka "bersih" agar garis bantu mudah dibaca. */
 const scaleMax = computed(() => {
@@ -26,13 +29,12 @@ const scaleMax = computed(() => {
 const spent = computed(() => props.daily.slice(0, lastDay.value).reduce((s, d) => s + d.expense, 0));
 const average = computed(() => (lastDay.value ? Math.round(spent.value / lastDay.value) : 0));
 
-const iso = (day) => `${props.month}-${String(day).padStart(2, '0')}`;
-const isToday = (day) => iso(day) === todayIso;
-const activeDay = computed(() => props.daily.find((d) => d.day === active.value));
+const activeIndex = computed(() => props.daily.findIndex((d) => d.date === active.value));
+const activeDay = computed(() => props.daily[activeIndex.value]);
 
 function barStyle(d) {
     const h = (d.expense / scaleMax.value) * 100;
-    const highlighted = active.value ? active.value === d.day : isToday(d.day);
+    const highlighted = active.value ? active.value === d.date : d.date === todayIso;
     return {
         height: d.expense ? `max(${h}%, 3px)` : '0',
         background: highlighted
@@ -42,8 +44,8 @@ function barStyle(d) {
     };
 }
 
-function tooltipLeft(day) {
-    const pct = ((day - 0.5) / props.daily.length) * 100;
+function tooltipLeft(index) {
+    const pct = ((index + 0.5) / props.daily.length) * 100;
     return `clamp(4.5rem, ${pct}%, calc(100% - 4.5rem))`;
 }
 </script>
@@ -63,34 +65,34 @@ function tooltipLeft(day) {
                 <div
                     v-if="activeDay"
                     class="pointer-events-none absolute -top-2 z-10 -translate-x-1/2 -translate-y-full rounded-xl bg-ink px-3 py-2 text-center whitespace-nowrap text-paper shadow-float"
-                    :style="{ left: tooltipLeft(activeDay.day) }"
+                    :style="{ left: tooltipLeft(activeIndex) }"
                 >
-                    <p class="text-[11px] opacity-70 first-letter:uppercase">{{ dayLabel(iso(activeDay.day)) }}</p>
+                    <p class="text-tiny opacity-70 first-letter:uppercase">{{ dayLabel(activeDay.date) }}</p>
                     <Money :value="activeDay.expense" class="block text-[13px] font-medium tnum" />
-                    <p v-if="activeDay.income" class="text-[11px] opacity-70 tnum">masuk <Money :value="activeDay.income" /></p>
+                    <p v-if="activeDay.income" class="text-tiny opacity-70 tnum">masuk <Money :value="activeDay.income" /></p>
                 </div>
             </Transition>
 
             <!-- Garis bantu -->
             <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2" aria-hidden="true">
                 <span class="h-px flex-1 border-t border-dashed border-line" />
-                <Money :value="scaleMax" compact class="text-[11px] text-muted tnum" />
+                <Money :value="scaleMax" compact class="text-tiny text-muted tnum" />
             </div>
             <div class="pointer-events-none absolute inset-x-0 top-1/2 flex items-center gap-2" aria-hidden="true">
                 <span class="h-px flex-1 border-t border-dashed border-line" />
-                <Money :value="scaleMax / 2" compact class="text-[11px] text-muted tnum" />
+                <Money :value="scaleMax / 2" compact class="text-tiny text-muted tnum" />
             </div>
 
             <div class="flex h-36 items-end gap-[2px] border-b border-line-strong pr-10 md:h-44" aria-hidden="true">
                 <button
-                    v-for="d in daily"
-                    :key="d.day"
+                    v-for="(d, i) in daily"
+                    :key="d.date"
                     type="button"
                     tabindex="-1"
                     class="flex h-full flex-1 items-end justify-center"
-                    :class="d.day > lastDay && 'pointer-events-none'"
-                    @mouseenter="active = d.day"
-                    @click="active = active === d.day ? null : d.day"
+                    :class="i >= lastDay && 'pointer-events-none'"
+                    @mouseenter="active = d.date"
+                    @click="active = active === d.date ? null : d.date"
                 >
                     <span
                         class="w-full max-w-6 rounded-t-[5px] rounded-b-[1px] transition-[height] duration-500 ease-out-soft"
@@ -99,10 +101,10 @@ function tooltipLeft(day) {
                 </button>
             </div>
 
-            <div class="mt-2 flex justify-between pr-10 text-[11px] text-muted tnum" aria-hidden="true">
-                <span>1</span>
-                <span>{{ Math.ceil(daily.length / 2) }}</span>
-                <span>{{ daily.length }}</span>
+            <div class="mt-2 flex justify-between pr-10 text-tiny text-muted tnum" aria-hidden="true">
+                <span>{{ daily[0]?.day }}</span>
+                <span>{{ daily[Math.floor(daily.length / 2)]?.day }}</span>
+                <span>{{ daily.at(-1)?.day }}</span>
             </div>
         </div>
 
@@ -110,8 +112,8 @@ function tooltipLeft(day) {
         <table class="sr-only">
             <caption>Pengeluaran per hari</caption>
             <tbody>
-                <tr v-for="d in daily.filter((x) => x.expense)" :key="d.day">
-                    <th scope="row">{{ dayLabel(iso(d.day)) }}</th>
+                <tr v-for="d in daily.filter((x) => x.expense)" :key="d.date">
+                    <th scope="row">{{ dayLabel(d.date) }}</th>
                     <td>{{ rupiah(d.expense) }}</td>
                 </tr>
             </tbody>

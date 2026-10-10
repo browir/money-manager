@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Period;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,6 +24,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'period_start',
     ];
 
     /**
@@ -45,7 +47,14 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'period_start' => 'integer',
         ];
+    }
+
+    /** Periode dari kunci "Y-m" (null = periode berjalan), mengikuti tanggal gajian pengguna. */
+    public function period(?string $key = null): Period
+    {
+        return Period::fromKey($key, (int) $this->period_start);
     }
 
     public function accounts(): HasMany

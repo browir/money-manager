@@ -24,12 +24,20 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $period = $user?->period();
 
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user?->only(['id', 'name', 'email']),
             ],
+            // Awal periode bulanan (tanggal gajian) dan rentang periode berjalan.
+            'period' => $period ? [
+                'startDay' => $period->startDay,
+                'current' => $period->key(),
+                'start' => $period->start->toDateString(),
+                'end' => $period->end->toDateString(),
+            ] : null,
             'accounts' => fn () => $user
                 ? $user->accounts()->withBalance()->orderBy('sort')->orderBy('id')->get()
                     ->map(fn ($a) => [
@@ -43,14 +51,14 @@ class HandleInertiaRequests extends Middleware
                     ])
                 : [],
             // uses  = jumlah pemakaian 90 hari terakhir (urutan pilihan di form cepat).
-            // spent = pengeluaran bulan berjalan (sisa anggaran).
+            // spent = pengeluaran periode berjalan (sisa anggaran).
             // urgent = kategori darurat, pengeluarannya di luar anggaran bulanan.
             'categories' => fn () => $user
                 ? $user->categories()
                     ->select(['id', 'name', 'type', 'icon', 'color', 'budget', 'urgent'])
                     ->withCount(['transactions as uses' => fn ($q) => $q->where('occurred_on', '>=', now()->subDays(90)->toDateString())])
                     ->withSum(['transactions as spent' => fn ($q) => $q->where('type', 'expense')
-                        ->whereBetween('occurred_on', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])], 'amount')
+                        ->whereBetween('occurred_on', $period->range())], 'amount')
                     ->orderBy('type')->orderBy('sort')->orderBy('id')
                     ->get()
                     ->map(fn ($c) => [

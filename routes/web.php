@@ -46,6 +46,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/pengaturan', [SettingsController::class, 'edit'])->name('settings');
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/pengaturan/periode', [SettingsController::class, 'updatePeriod'])->name('settings.period');
     Route::put('/pengaturan/sandi', [SettingsController::class, 'updatePassword'])->name('settings.password');
 });
 

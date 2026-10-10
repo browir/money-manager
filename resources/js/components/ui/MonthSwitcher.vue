@@ -1,14 +1,16 @@
 <script setup>
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { currentMonth, monthLabel, shiftMonth } from '@/lib/dates';
+import { usePeriod } from '@/composables/usePeriod';
+import { monthLabel, shiftMonth } from '@/lib/dates';
 
 const props = defineProps({
     month: { type: String, required: true },
 });
 const emit = defineEmits(['change']);
 
-const isCurrent = computed(() => props.month >= currentMonth());
+const period = usePeriod();
+const isCurrent = computed(() => props.month >= period.current.value);
 </script>
 
 <template>
@@ -24,12 +26,17 @@ const isCurrent = computed(() => props.month >= currentMonth());
         </button>
         <button
             type="button"
-            class="h-9 min-w-[7.5rem] rounded-xl px-2 text-[15px] font-medium capitalize transition-colors hover:bg-sunken"
-            :title="isCurrent ? '' : 'Kembali ke bulan ini'"
-            @click="!isCurrent && emit('change', currentMonth())"
+            class="min-h-9 min-w-[7.5rem] rounded-xl px-2 py-0.5 text-[15px] font-medium capitalize transition-colors hover:bg-sunken"
+            :title="isCurrent ? '' : `Kembali ke ${period.thisLabel.value}`"
+            @click="!isCurrent && emit('change', period.current.value)"
         >
             <Transition name="fade" mode="out-in">
-                <span :key="month">{{ monthLabel(month) }}</span>
+                <span :key="month" class="block leading-tight">
+                    {{ monthLabel(month) }}
+                    <span v-if="period.startDay.value > 1" class="block text-tiny font-normal text-muted normal-case tnum">
+                        {{ period.rangeLabel(month) }}
+                    </span>
+                </span>
             </Transition>
         </button>
         <button

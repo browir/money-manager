@@ -91,7 +91,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                 @click="openQuickAdd()"
             >
                 <span class="flex items-center gap-2"><Plus class="size-4" :stroke-width="2.4" /> Catat</span>
-                <kbd class="rounded-md bg-white/15 px-1.5 font-mono text-[11px] dark:bg-black/15">N</kbd>
+                <kbd class="rounded-md bg-white/15 px-1.5 font-mono text-tiny dark:bg-black/15">N</kbd>
             </button>
             <button
                 type="button"
@@ -100,7 +100,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
             >
                 <Search class="size-4" />
                 <span class="flex-1 text-left">Cari…</span>
-                <kbd class="font-mono text-[11px]">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
+                <kbd class="font-mono text-tiny">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
             </button>
 
             <p class="eyebrow mb-2 px-3">Menu</p>
@@ -128,7 +128,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                 </span>
                 <div class="min-w-0 flex-1">
                     <p class="truncate text-[13px] font-medium">{{ user?.name }}</p>
-                    <p class="truncate text-[11px] text-muted">{{ user?.email }}</p>
+                    <p class="truncate text-tiny text-muted">{{ user?.email }}</p>
                 </div>
                 <button type="button" class="icon-btn size-8" aria-label="Ganti tema" title="Ganti tema" @click="toggleTheme">
                     <Sun class="hidden size-4 dark:block" />
@@ -167,7 +167,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                     <Link
                         v-else
                         :href="route(item.route)"
-                        class="flex flex-col items-center gap-0.5 text-[10.5px] transition-colors"
+                        class="flex flex-col items-center gap-0.5 text-2xs transition-colors"
                         :class="isActive(item) ? 'font-semibold text-accent-text' : 'text-muted'"
                         :aria-current="isActive(item) ? 'page' : undefined"
                     >

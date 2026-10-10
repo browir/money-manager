@@ -11,11 +11,10 @@ class DashboardController extends Controller
     public function __invoke(Request $request)
     {
         $user = $request->user();
-        $month = $this->month($request->query('month'));
-        $start = $month->toDateString();
-        $end = $month->endOfMonth()->toDateString();
-        $prevStart = $month->subMonth()->toDateString();
-        $prevEnd = $month->subMonth()->endOfMonth()->toDateString();
+        // Periode mengikuti tanggal gajian pengguna (?month=2026-10 = periode yang dimulai Okt 2026).
+        $period = $user->period($request->query('month'));
+        [$start, $end] = $period->range();
+        [$prevStart, $prevEnd] = $period->previous()->range();
 
         $totals = fn (string $from, string $to) => $user->transactions()
             ->whereBetween('occurred_on', [$from, $to])
@@ -51,12 +50,11 @@ class DashboardController extends Controller
             ->get();
 
         $days = [];
-        for ($d = 1; $d <= $month->daysInMonth; $d++) {
-            $days[$d] = ['day' => $d, 'income' => 0, 'expense' => 0];
+        foreach ($period->days() as $d) {
+            $days[$d->toDateString()] = ['date' => $d->toDateString(), 'day' => $d->day, 'income' => 0, 'expense' => 0];
         }
         foreach ($daily as $row) {
-            $d = (int) substr((string) $row->occurred_on, 8, 2);
-            $days[$d][$row->type] = (int) $row->total;
+            $days[substr((string) $row->occurred_on, 0, 10)][$row->type] = (int) $row->total;
         }
 
         $recent = $user->transactions()
@@ -76,7 +74,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'due' => $due,
-            'month' => $month->format('Y-m'),
+            'month' => $period->key(),
             'totals' => [
                 'income' => (int) $current->income,
                 'expense' => (int) $current->expense,

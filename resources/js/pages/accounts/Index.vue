@@ -129,11 +129,11 @@ function destroy() {
                     </span>
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-[15px] font-semibold">{{ account.name }}</span>
-                        <span class="block text-[12px] text-muted">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
+                        <span class="block text-small text-muted">{{ ACCOUNT_TYPES[account.type]?.label }}</span>
                     </span>
                 </span>
                 <span>
-                    <span class="block text-[12px] text-muted">Saldo</span>
+                    <span class="block text-small text-muted">Saldo</span>
                     <Money
                         :value="account.balance"
                         animate
@@ -168,7 +168,7 @@ function destroy() {
                 <IconTile :icon="accountIcon(editing.type)" :color="editing.color" />
                 <div class="min-w-0 flex-1">
                     <p class="truncate text-[15px] font-medium">{{ editing.name }}</p>
-                    <p class="text-[12px] text-muted">Saldo tercatat <Money :value="current" class="font-medium text-ink-2" /></p>
+                    <p class="text-small text-muted">Saldo tercatat <Money :value="current" class="font-medium text-ink-2" /></p>
                 </div>
             </div>
 
@@ -176,7 +176,7 @@ function destroy() {
                 <label class="field-label">Saldo sebenarnya saat ini</label>
                 <AmountField v-model="adjustForm.balance" />
                 <p v-if="adjustForm.errors.balance" class="field-error">{{ adjustForm.errors.balance }}</p>
-                <p class="mt-1.5 text-[12px] text-muted">Lihat di aplikasi bank, e-wallet, atau hitung uang tunai Anda.</p>
+                <p class="mt-1.5 text-small text-muted">Lihat di aplikasi bank, e-wallet, atau hitung uang tunai Anda.</p>
             </div>
 
             <!-- Pratinjau selisih -->
@@ -199,7 +199,7 @@ function destroy() {
                 <input id="adjust-note" v-model="adjustForm.note" class="field" maxlength="160" placeholder="Misal: biaya admin bank, uang receh hilang" />
             </div>
 
-            <p class="text-[12px] leading-relaxed text-muted">
+            <p class="text-small leading-relaxed text-muted">
                 Tidak dihitung sebagai pemasukan atau pengeluaran, jadi arus kas dan anggaran tetap akurat. Saldo awal dan riwayat
                 transaksi tidak berubah.
             </p>
@@ -210,7 +210,7 @@ function destroy() {
             <!-- Saldo saat ini + aksi sesuaikan (hanya untuk akun yang sudah ada) -->
             <div v-if="editing" class="flex items-center gap-3 rounded-2xl border border-line bg-sunken/60 px-4 py-3">
                 <div class="min-w-0 flex-1">
-                    <p class="text-[12px] text-muted">Saldo saat ini</p>
+                    <p class="text-small text-muted">Saldo saat ini</p>
                     <Money :value="current" class="text-[20px] font-semibold tracking-tight" :class="current < 0 && 'text-neg'" />
                 </div>
                 <button type="button" class="btn btn-primary h-9 shrink-0 px-3.5 text-[13px]" @click="startAdjust">
@@ -234,7 +234,7 @@ function destroy() {
             <div>
                 <label class="field-label">Saldo awal</label>
                 <AmountField v-model="form.initial_balance" />
-                <p class="mt-1.5 text-[12px] text-muted">
+                <p class="mt-1.5 text-small text-muted">
                     Saldo sebelum transaksi pertama dicatat di Sisih.
                     <template v-if="editing">Mengubahnya menggeser seluruh riwayat. Untuk mencocokkan saldo hari ini, pakai <span class="font-medium text-ink-2">Sesuaikan saldo</span>.</template>
                 </p>
@@ -243,7 +243,7 @@ function destroy() {
             <label v-if="editing" class="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">
                 <span>
                     <span class="block text-sm font-medium">Arsipkan</span>
-                    <span class="block text-[12px] text-muted">Disembunyikan dari pilihan, riwayat tetap ada.</span>
+                    <span class="block text-small text-muted">Disembunyikan dari pilihan, riwayat tetap ada.</span>
                 </span>
                 <input v-model="form.archived" type="checkbox" class="size-5 accent-[var(--accent)]" />
             </label>

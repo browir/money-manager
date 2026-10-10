@@ -48,7 +48,7 @@ function adjust(r) {
                     <IconTile v-else :icon="categoryIcon(categoryById[r.category_id]?.icon)" :color="categoryById[r.category_id]?.color ?? 'slate'" size="sm" />
                     <span class="min-w-0 flex-1">
                         <span class="block truncate text-[14px] leading-tight font-medium">{{ title(r) }}</span>
-                        <span class="mt-0.5 block truncate text-[12px] leading-tight text-muted">
+                        <span class="mt-0.5 block truncate text-small leading-tight text-muted">
                             <span :class="daysUntil(r.next_due) < 0 && 'text-neg'">{{ dueLabel(r.next_due) }}</span>
                             · <Money :value="r.amount" class="tnum" /> · {{ accountById[r.account_id]?.name }}
                         </span>

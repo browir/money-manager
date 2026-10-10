@@ -10,10 +10,12 @@ import Money from '@/components/ui/Money.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
 import { useLedger } from '@/composables/useLedger';
+import { usePeriod } from '@/composables/usePeriod';
 import { CATEGORY_ICONS, categoryIcon } from '@/lib/icons';
 import { color, tint } from '@/lib/palette';
 
 const { categories } = useLedger();
+const period = usePeriod();
 const tab = ref('expense');
 const list = computed(() => categories.value.filter((c) => c.type === tab.value));
 
@@ -84,10 +86,10 @@ function destroy() {
                 <span class="min-w-0 flex-1">
                     <span class="flex items-center gap-2">
                         <span class="truncate text-[15px]">{{ category.name }}</span>
-                        <span v-if="category.urgent" class="shrink-0 rounded-full bg-neg/10 px-2 py-0.5 text-[11px] font-medium text-neg">Darurat</span>
+                        <span v-if="category.urgent && category.name.toLowerCase() !== 'darurat'" class="shrink-0 rounded-full bg-neg/10 px-2 py-0.5 text-tiny font-medium text-neg">Darurat</span>
                     </span>
-                    <span v-if="category.urgent" class="mt-0.5 block truncate text-[12px] text-muted tnum">
-                        Di luar anggaran<template v-if="category.spent"> · <Money :value="category.spent" /> bulan ini</template>
+                    <span v-if="category.urgent" class="mt-0.5 block truncate text-small text-muted tnum">
+                        Di luar anggaran<template v-if="category.spent"> · <Money :value="category.spent" /> {{ period.thisLabel.value }}</template>
                     </span>
                     <template v-if="budgetUse(category)">
                         <span class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-sunken">
@@ -97,7 +99,7 @@ function destroy() {
                                 :style="{ width: `${Math.min(100, budgetUse(category).ratio * 100)}%` }"
                             />
                         </span>
-                        <span class="mt-1 block truncate text-[12px] text-muted tnum">
+                        <span class="mt-1 block truncate text-small text-muted tnum">
                             <Money :value="category.spent" /> dari <Money :value="category.budget" />
                         </span>
                     </template>
@@ -131,7 +133,7 @@ function destroy() {
             <label v-if="form.type === 'expense'" class="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">
                 <span>
                     <span class="block text-sm font-medium">Kategori darurat</span>
-                    <span class="block text-[12px] text-muted">Pengeluaran tak terduga. Tetap tercatat, tapi tidak mengurangi anggaran bulanan.</span>
+                    <span class="block text-small text-muted">Pengeluaran tak terduga. Tetap tercatat, tapi tidak mengurangi anggaran bulanan.</span>
                 </span>
                 <input v-model="form.urgent" type="checkbox" class="size-5 accent-[var(--accent)]" />
             </label>
@@ -139,7 +141,7 @@ function destroy() {
             <div v-if="form.type === 'expense' && !form.urgent">
                 <span class="field-label">Anggaran bulanan</span>
                 <AmountField v-model="form.budget" />
-                <p class="mt-1.5 text-[12px] text-muted">Opsional. Kosongkan jika kategori ini tidak dibatasi.</p>
+                <p class="mt-1.5 text-small text-muted">Opsional. Kosongkan jika kategori ini tidak dibatasi.</p>
                 <p v-if="form.errors.budget" class="field-error">{{ form.errors.budget }}</p>
             </div>
 
@@ -187,7 +189,7 @@ function destroy() {
                     {{ editing ? 'Simpan perubahan' : 'Tambah kategori' }}
                 </button>
             </div>
-            <p v-if="confirmDelete" class="mt-2 text-[12px] text-muted">Transaksi lama tetap ada, tapi tanpa kategori.</p>
+            <p v-if="confirmDelete" class="mt-2 text-small text-muted">Transaksi lama tetap ada, tapi tanpa kategori.</p>
         </template>
     </Sheet>
 </template>

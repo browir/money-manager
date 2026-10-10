@@ -20,7 +20,7 @@
     --line-strong: #d2cec4;
     --ink: #17191e;
     --ink-2: #4d5058;
-    --muted: #82858e;
+    --muted: #6b6e77;
     --accent: #1f3a5f;
     --accent-hover: #172d4b;
     --accent-fg: #ffffff;
@@ -67,7 +67,7 @@
     --line-strong: #353a45;
     --ink: #ecedef;
     --ink-2: #b4b8c0;
-    --muted: #7d828c;
+    --muted: #8a8f99;
     --accent: #a9c1e4;
     --accent-hover: #bfd1ec;
     --accent-fg: #0f1724;
@@ -189,6 +189,27 @@
     }
 }
 
+/* Teks kecil: zoom dimatikan di HP, jadi di layar sentuh dibuat 1px lebih besar.
+   Ganti text-[10.5px]/[11px]/[12px] dengan ini. */
+@utility text-2xs {
+    font-size: 10.5px;
+    @media (pointer: coarse) {
+        font-size: 11.5px;
+    }
+}
+@utility text-tiny {
+    font-size: 11px;
+    @media (pointer: coarse) {
+        font-size: 12px;
+    }
+}
+@utility text-small {
+    font-size: 12px;
+    @media (pointer: coarse) {
+        font-size: 13px;
+    }
+}
+
 @utility pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
 }
@@ -265,7 +286,7 @@
     }
 
     .eyebrow {
-        @apply text-[12px] font-medium tracking-[0.08em] text-muted uppercase;
+        @apply text-small font-medium tracking-[0.08em] text-muted uppercase;
     }
 
     .hairline {
