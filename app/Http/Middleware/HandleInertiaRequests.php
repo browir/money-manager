@@ -44,9 +44,10 @@ class HandleInertiaRequests extends Middleware
                 : [],
             // uses  = jumlah pemakaian 90 hari terakhir (urutan pilihan di form cepat).
             // spent = pengeluaran bulan berjalan (sisa anggaran).
+            // urgent = kategori darurat, pengeluarannya di luar anggaran bulanan.
             'categories' => fn () => $user
                 ? $user->categories()
-                    ->select(['id', 'name', 'type', 'icon', 'color', 'budget'])
+                    ->select(['id', 'name', 'type', 'icon', 'color', 'budget', 'urgent'])
                     ->withCount(['transactions as uses' => fn ($q) => $q->where('occurred_on', '>=', now()->subDays(90)->toDateString())])
                     ->withSum(['transactions as spent' => fn ($q) => $q->where('type', 'expense')
                         ->whereBetween('occurred_on', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])], 'amount')
@@ -59,6 +60,7 @@ class HandleInertiaRequests extends Middleware
                         'icon' => $c->icon,
                         'color' => $c->color,
                         'budget' => $c->budget,
+                        'urgent' => (bool) $c->urgent,
                         'uses' => (int) $c->uses,
                         'spent' => (int) $c->spent,
                     ])

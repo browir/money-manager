@@ -8,6 +8,19 @@ import { highlightTransaction } from './composables/useCelebration';
 import { startOutbox } from './composables/useOutbox';
 import { pushToast } from './composables/useToast';
 
+// Aplikasi terasa seperti aplikasi asli: zoom dimatikan. iOS Safari mengabaikan
+// user-scalable=no di meta viewport, jadi gestur cubit dicegah langsung.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+document.addEventListener(
+    'touchmove',
+    (e) => {
+        if (e.touches.length > 1) e.preventDefault();
+    },
+    { passive: false },
+);
+
 const pages = import.meta.glob('./pages/**/*.vue', { eager: true });
 
 createInertiaApp({

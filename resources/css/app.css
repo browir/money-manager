@@ -142,10 +142,11 @@
         overscroll-behavior-y: none;
     }
 
-    /* Matikan zoom ketuk-dua-kali, cubit tetap bisa. Dipasang di semua elemen
-       karena touch-action tidak menembus kontainer gulir bersarang. */
+    /* Matikan zoom (ketuk-dua-kali & cubit), geser tetap bisa. Dipasang di semua elemen
+       karena touch-action tidak menembus kontainer gulir bersarang. iOS Safari
+       mengabaikan ini untuk cubit; ditangani di app.js (gesturestart). */
     * {
-        touch-action: manipulation;
+        touch-action: pan-x pan-y;
     }
 
     body {

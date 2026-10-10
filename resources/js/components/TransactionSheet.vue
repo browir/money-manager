@@ -79,6 +79,7 @@ function pickSuggestion(s) {
 /* ---- Sisa anggaran kategori (hanya bulan berjalan; "spent" dari server) ---- */
 const budgetHint = computed(() => {
     const c = categoryById.value[form.category_id];
+    if (form.type === 'expense' && c?.urgent) return { urgent: true };
     if (form.type !== 'expense' || !c?.budget || form.occurred_on.slice(0, 7) !== currentMonth()) return null;
     const e = editing.value;
     const already = e && e.type === 'expense' && e.category_id === c.id && e.occurred_on.slice(0, 7) === currentMonth() ? e.amount : 0;
@@ -414,7 +415,8 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
                 </button>
             </div>
             <p v-if="budgetHint" class="mt-2 text-[12px]" :class="budgetHint.over ? 'text-neg' : 'text-muted'">
-                <template v-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} <Money :value="-budgetHint.left" /></template>
+                <template v-if="budgetHint.urgent">Darurat: tidak mengurangi anggaran bulanan</template>
+                <template v-else-if="budgetHint.over">Melebihi anggaran {{ budgetHint.name }} <Money :value="-budgetHint.left" /></template>
                 <template v-else>Sisa anggaran {{ budgetHint.name }}: <Money :value="budgetHint.left" /></template>
             </p>
         </section>

@@ -57,13 +57,18 @@ class CategoryController extends Controller
             'icon' => ['required', 'string', 'max:32'],
             'color' => ['required', 'string', 'max:16'],
             'budget' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
+            'urgent' => ['sometimes', 'boolean'],
         ], [
             'name.required' => 'Nama kategori wajib diisi.',
             'budget.min' => 'Anggaran tidak boleh negatif.',
         ]);
 
-        // Anggaran hanya untuk pengeluaran; 0 dianggap "tanpa anggaran".
-        if (($data['type'] ?? null) === 'income' || empty($data['budget'])) {
+        // Darurat hanya untuk pengeluaran.
+        $data['urgent'] = ($data['type'] ?? null) === 'expense' && ! empty($data['urgent']);
+
+        // Anggaran hanya untuk pengeluaran biasa; 0 dianggap "tanpa anggaran".
+        // Kategori darurat berada di luar anggaran bulanan, jadi tidak punya anggaran.
+        if (($data['type'] ?? null) === 'income' || $data['urgent'] || empty($data['budget'])) {
             $data['budget'] = null;
         }
 

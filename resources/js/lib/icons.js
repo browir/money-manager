@@ -1,7 +1,7 @@
 import {
     Baby, Banknote, BookOpen, Briefcase, Bus, Cake, Car, Circle, Clapperboard, Coffee, Coins, CreditCard, Dumbbell,
     Fuel, Gamepad2, Gem, Gift, GraduationCap, HandCoins, HandHeart, HeartPulse, House, Landmark, Laptop, Music,
-    PawPrint, PiggyBank, Pill, Plane, Receipt, Scissors, Shapes, Shirt, ShoppingBag, ShoppingCart, Smartphone,
+    PawPrint, PiggyBank, Pill, Plane, Receipt, Scissors, Shapes, Shirt, ShoppingBag, Siren, ShoppingCart, Smartphone,
     Sparkles, Store, Ticket, TrendingUp, Utensils, Wallet, Wifi, Wrench, Zap, Droplets, Train, Bike,
 } from 'lucide-vue-next';
 
@@ -25,6 +25,7 @@ export const CATEGORY_ICONS = {
     house: House,
     wrench: Wrench,
     'heart-pulse': HeartPulse,
+    siren: Siren,
     pill: Pill,
     dumbbell: Dumbbell,
     scissors: Scissors,

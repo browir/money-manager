@@ -2,7 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useIntersectionObserver } from '@vueuse/core';
 import {
-    ArrowDownLeft, ArrowDownRight, ArrowRightLeft, ArrowUpRight, Eye, EyeOff, Plus, Search, Sun,
+    ArrowDownLeft, ArrowDownRight, ArrowRightLeft, ArrowUpRight, Eye, EyeOff, Plus, Search, Siren, Sun,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
@@ -87,10 +87,11 @@ const todayStat = computed(() => {
     return { spent, avg, diff: avg ? Math.round(((spent - avg) / avg) * 100) : null };
 });
 
-/* ---- Anggaran bulan berjalan (budget & spent per kategori dari server) ---- */
+/* ---- Anggaran bulan berjalan (budget & spent per kategori dari server) ----
+   Kategori darurat tidak ikut: pengeluarannya tidak mengurangi anggaran bulanan. */
 const budget = computed(() => {
     if (!isCurrentMonth.value) return null;
-    const list = categories.value.filter((c) => c.type === 'expense' && c.budget);
+    const list = categories.value.filter((c) => c.type === 'expense' && !c.urgent && c.budget);
     if (!list.length) return null;
     const total = list.reduce((s, c) => s + c.budget, 0);
     const spent = list.reduce((s, c) => s + c.spent, 0);
@@ -104,6 +105,7 @@ const budget = computed(() => {
         perDay: left > 0 ? Math.floor(left / daysLeft) : 0,
         ratio: spent / total,
         overCount: list.filter((c) => c.spent > c.budget).length,
+        urgent: categories.value.filter((c) => c.urgent).reduce((s, c) => s + c.spent, 0),
     };
 });
 
@@ -403,6 +405,10 @@ useShortcuts({
                     <span v-if="budget.overCount" class="rounded-full bg-neg/10 px-2 py-0.5 font-medium whitespace-nowrap text-neg">
                         {{ budget.overCount }} kategori lewat
                     </span>
+                </p>
+                <p v-if="budget.urgent" class="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
+                    <Siren class="size-3.5 shrink-0 text-neg" :stroke-width="2.2" />
+                    <span>Darurat <Money :value="budget.urgent" class="font-medium text-ink-2" /> · di luar anggaran</span>
                 </p>
             </section>
 

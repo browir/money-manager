@@ -65,6 +65,12 @@ class DatabaseSeeder extends Seeder
                     $user->categories()->create(compact('name', 'icon', 'color', 'type') + ['sort' => $i]);
                 }
             }
+
+            // Darurat: pengeluarannya tidak mengurangi anggaran bulanan.
+            $user->categories()->create([
+                'name' => 'Darurat', 'type' => 'expense', 'icon' => 'siren', 'color' => 'rose',
+                'urgent' => true, 'sort' => count($expense),
+            ]);
         }
     }
 }

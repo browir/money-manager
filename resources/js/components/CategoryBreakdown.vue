@@ -33,7 +33,8 @@ const rows = computed(() =>
             icon: categoryIcon(c?.icon),
             color: c?.color ?? 'slate',
             share: total.value ? item.total / total.value : 0,
-            budget: showBudget.value && c?.budget ? c.budget : null,
+            budget: showBudget.value && !c?.urgent && c?.budget ? c.budget : null,
+            urgent: !!c?.urgent,
         };
     }),
 );
@@ -101,6 +102,7 @@ const percent = (share) => (share >= 0.995 ? '100' : share < 0.01 ? '<1' : Math.
                                     <template v-if="row.total > row.budget">Lewat <Money :value="row.total - row.budget" /></template>
                                     <template v-else>Sisa <Money :value="row.budget - row.total" /></template>
                                 </span>
+                                <span v-else-if="row.urgent" class="truncate text-muted">Darurat · di luar anggaran</span>
                                 <span v-else class="truncate text-muted">{{ row.count }} transaksi</span>
                                 <span class="shrink-0 text-muted">{{ percent(row.share) }}</span>
                             </span>

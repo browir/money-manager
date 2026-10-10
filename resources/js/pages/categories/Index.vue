@@ -20,11 +20,11 @@ const list = computed(() => categories.value.filter((c) => c.type === tab.value)
 const sheetOpen = ref(false);
 const editing = ref(null);
 const confirmDelete = ref(false);
-const form = useForm({ name: '', type: 'expense', icon: 'shapes', color: 'teal', budget: 0 });
+const form = useForm({ name: '', type: 'expense', icon: 'shapes', color: 'teal', budget: 0, urgent: false });
 
 /** Pemakaian anggaran bulan berjalan ("spent" dari server). */
 function budgetUse(category) {
-    if (category.type !== 'expense' || !category.budget) return null;
+    if (category.type !== 'expense' || category.urgent || !category.budget) return null;
     const ratio = category.spent / category.budget;
     return { ratio, over: ratio > 1, warn: ratio >= 0.85 && ratio <= 1 };
 }
@@ -38,6 +38,7 @@ function edit(category = null) {
     form.icon = category?.icon ?? 'shapes';
     form.color = category?.color ?? 'teal';
     form.budget = category?.budget ?? 0;
+    form.urgent = category?.urgent ?? false;
     sheetOpen.value = true;
 }
 
@@ -81,7 +82,13 @@ function destroy() {
             <button type="button" class="flex w-full items-center gap-3 py-3 text-left transition-opacity hover:opacity-80" @click="edit(category)">
                 <IconTile :icon="categoryIcon(category.icon)" :color="category.color" />
                 <span class="min-w-0 flex-1">
-                    <span class="block truncate text-[15px]">{{ category.name }}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="truncate text-[15px]">{{ category.name }}</span>
+                        <span v-if="category.urgent" class="shrink-0 rounded-full bg-neg/10 px-2 py-0.5 text-[11px] font-medium text-neg">Darurat</span>
+                    </span>
+                    <span v-if="category.urgent" class="mt-0.5 block truncate text-[12px] text-muted tnum">
+                        Di luar anggaran<template v-if="category.spent"> · <Money :value="category.spent" /> bulan ini</template>
+                    </span>
                     <template v-if="budgetUse(category)">
                         <span class="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-sunken">
                             <span
@@ -121,7 +128,15 @@ function destroy() {
                 />
             </div>
 
-            <div v-if="form.type === 'expense'">
+            <label v-if="form.type === 'expense'" class="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-sunken px-4 py-3">
+                <span>
+                    <span class="block text-sm font-medium">Kategori darurat</span>
+                    <span class="block text-[12px] text-muted">Pengeluaran tak terduga. Tetap tercatat, tapi tidak mengurangi anggaran bulanan.</span>
+                </span>
+                <input v-model="form.urgent" type="checkbox" class="size-5 accent-[var(--accent)]" />
+            </label>
+
+            <div v-if="form.type === 'expense' && !form.urgent">
                 <span class="field-label">Anggaran bulanan</span>
                 <AmountField v-model="form.budget" />
                 <p class="mt-1.5 text-[12px] text-muted">Opsional. Kosongkan jika kategori ini tidak dibatasi.</p>
