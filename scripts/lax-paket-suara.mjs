@@ -105,8 +105,10 @@ function readWav(buffer) {
     while (offset + 8 <= buffer.length) {
         const id = buffer.toString('ascii', offset, offset + 4);
         const size = buffer.readUInt32LE(offset + 4);
-        if (id === 'data') return { rate, pcm: buffer.subarray(offset + 8, offset + 8 + size) };
-        offset += 8 + size;
+        // Hanya blok "data" yang audio; blok lain (mis. "C2PA" = tanda keaslian konten AI di akhir
+        // berkas Gemini) bukan suara dan akan terdengar seperti derau bila ikut dikodekan.
+        if (id === 'data') return { rate, pcm: buffer.subarray(offset + 8, Math.min(buffer.length, offset + 8 + size)) };
+        offset += 8 + size + (size % 2); // blok berukuran ganjil diberi 1 byte pengisi
     }
     return null;
 }
