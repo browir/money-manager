@@ -24,8 +24,9 @@ function undo(toast) {
                 :class="!toast.undo && 'pr-4'"
             >
                 <span
-                    v-if="toast.tone === 'warn'"
-                    class="size-1.5 shrink-0 rounded-full bg-[var(--c-sand)]"
+                    v-if="toast.tone === 'warn' || toast.tone === 'danger'"
+                    class="size-1.5 shrink-0 rounded-full"
+                    :class="toast.tone === 'danger' ? 'bg-[var(--c-rose)]' : 'bg-[var(--c-sand)]'"
                     aria-hidden="true"
                 />
                 <span class="py-1">{{ toast.message }}</span>

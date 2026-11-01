@@ -22,6 +22,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/transaksi', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/transaksi', [TransactionController::class, 'store'])->name('transactions.store');
+    // Catat lewat suara (Gemini/Claude). Dibatasi agar biaya API tidak bocor bila ada yang menekan berulang.
+    Route::post('/transaksi/suara', [TransactionController::class, 'parse'])->middleware('throttle:20,1')->name('transactions.parse');
+    Route::post('/transaksi/banyak', [TransactionController::class, 'storeMany'])->name('transactions.storeMany');
     Route::put('/transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::delete('/transaksi/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
     Route::post('/transaksi/{id}/kembalikan', [TransactionController::class, 'restore'])->name('transactions.restore');
@@ -68,8 +71,8 @@ Route::get('/_ops/migrate/{token}', function (string $token) {
         Artisan::call('db:seed', ['--force' => true]);
         $output .= Artisan::output();
     } catch (Throwable $e) {
-        return response($output."
-GAGAL: ".get_class($e).': '.$e->getMessage(), 500, ['Content-Type' => 'text/plain; charset=utf-8']);
+        return response($output.'
+GAGAL: '.get_class($e).': '.$e->getMessage(), 500, ['Content-Type' => 'text/plain; charset=utf-8']);
     }
 
     return response(trim($output) ?: 'Tidak ada perubahan.', 200, ['Content-Type' => 'text/plain; charset=utf-8']);

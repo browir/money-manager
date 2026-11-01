@@ -2,7 +2,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useIntersectionObserver } from '@vueuse/core';
 import {
-    ArrowDownLeft, ArrowDownRight, ArrowRightLeft, ArrowUpRight, Eye, EyeOff, Plus, Search, Siren, Sun,
+    ArrowDownLeft, ArrowDownRight, ArrowRightLeft, ArrowUpRight, Eye, EyeOff, Mic, Plus, Search, Siren, Sun,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { route } from 'ziggy-js';
@@ -15,6 +15,7 @@ import Money from '@/components/ui/Money.vue';
 import MonthSwitcher from '@/components/ui/MonthSwitcher.vue';
 import { togglePrivacy, usePrivacy } from '@/composables/usePrivacy';
 import { openQuickAdd } from '@/composables/useQuickAdd';
+import { openVoice } from '@/composables/useVoice';
 import { useLedger } from '@/composables/useLedger';
 import { useShortcuts } from '@/composables/useShortcuts';
 import { daysBetween, monthLabel, shiftMonth, today } from '@/lib/dates';
@@ -64,7 +65,8 @@ const isCurrentMonth = computed(() => props.month === period.current.value);
 const net = computed(() => props.totals.income - props.totals.expense);
 
 function delta(now, before) {
-    if (!before) return null;
+    // Periode berjalan yang masih kosong: "turun 100%" tidak berarti apa-apa.
+    if (!before || (isCurrentMonth.value && !now)) return null;
     return Math.round(((now - before) / before) * 100);
 }
 const incomeDelta = computed(() => delta(props.totals.income, props.totals.prevIncome));
@@ -117,11 +119,12 @@ const hero = ref(null);
 const heroVisible = ref(true);
 useIntersectionObserver(hero, ([entry]) => (heroVisible.value = entry.isIntersecting), { rootMargin: '-56px 0px 0px 0px' });
 
-const quickActions = [
-    { type: 'expense', label: 'Keluar', icon: ArrowUpRight },
-    { type: 'income', label: 'Masuk', icon: ArrowDownLeft },
-    { type: 'transfer', label: 'Transfer', icon: ArrowRightLeft },
-];
+const quickActions = computed(() => [
+    { label: 'Keluar', icon: ArrowUpRight, run: () => openQuickAdd({ type: 'expense' }) },
+    { label: 'Masuk', icon: ArrowDownLeft, run: () => openQuickAdd({ type: 'income' }) },
+    { label: 'Transfer', icon: ArrowRightLeft, run: () => openQuickAdd({ type: 'transfer' }) },
+    ...(page.props.features?.voice ? [{ label: 'Suara', icon: Mic, run: openVoice }] : []),
+]);
 
 /** Latar kartu akun: gradasi warna identitas di atas permukaan. */
 const accountBg = (key) => `linear-gradient(150deg, ${tint(key, 20)}, ${tint(key, 5)}), var(--surface)`;
@@ -230,15 +233,18 @@ useShortcuts({
             </div>
 
             <!-- Aksi cepat -->
-            <div class="grid grid-cols-3 gap-2 md:w-[330px] md:shrink-0">
+            <div
+                class="grid gap-2 md:shrink-0"
+                :class="quickActions.length > 3 ? 'grid-cols-4 md:w-[400px]' : 'grid-cols-3 md:w-[330px]'"
+            >
                 <button
                     v-for="action in quickActions"
-                    :key="action.type"
+                    :key="action.label"
                     type="button"
                     class="hero-glass flex flex-col items-center gap-1.5 rounded-2xl pt-3 pb-2.5 transition hover:bg-white/20 active:scale-[0.95]"
-                    @click="openQuickAdd({ type: action.type })"
+                    @click="action.run()"
                 >
-                    <span class="grid size-9 place-items-center rounded-full bg-white/15">
+                    <span class="flex size-9 items-center justify-center rounded-full bg-white/15">
                         <component :is="action.icon" class="size-[18px]" :stroke-width="2.2" />
                     </span>
                     <span class="text-small font-medium">{{ action.label }}</span>

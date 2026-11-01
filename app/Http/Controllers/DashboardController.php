@@ -16,6 +16,13 @@ class DashboardController extends Controller
         [$start, $end] = $period->range();
         [$prevStart, $prevEnd] = $period->previous()->range();
 
+        // Periode berjalan baru setengah jalan: bandingkan dengan titik yang sama di periode
+        // sebelumnya, bukan sebulan penuh (tanggal 1 selalu terlihat "turun 100%").
+        if ($period->key() === $user->period()->key()) {
+            $elapsed = (int) $period->start->diffInDays(today());
+            $prevEnd = min($prevEnd, $period->previous()->start->addDays($elapsed)->toDateString());
+        }
+
         $totals = fn (string $from, string $to) => $user->transactions()
             ->whereBetween('occurred_on', [$from, $to])
             ->whereIn('type', ['income', 'expense'])

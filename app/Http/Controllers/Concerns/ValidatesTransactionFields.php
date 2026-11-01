@@ -14,28 +14,49 @@ trait ValidatesTransactionFields
      */
     protected function validateTransactionFields(Request $request, array $extraRules = []): array
     {
-        $userId = $request->user()->id;
-        $ownedAccount = Rule::exists('accounts', 'id')->where('user_id', $userId);
-        $type = $request->input('type');
+        $data = $request->validate(
+            [...$this->transactionRules($request->user()->id, $request->input('type')), ...$extraRules],
+            $this->transactionMessages(),
+        );
 
-        $data = $request->validate([
-            'type' => ['required', Rule::in(Transaction::TYPES)],
-            'amount' => ['required', 'integer', 'min:1', 'max:999999999999'],
-            'account_id' => ['required', 'integer', $ownedAccount],
-            'to_account_id' => ['nullable', 'required_if:type,transfer', 'integer', 'different:account_id', $ownedAccount],
-            'category_id' => ['nullable', 'integer', Rule::exists('categories', 'id')
+        return $this->normalizeTransaction($data);
+    }
+
+    /**
+     * @param  string  $prefix  awalan nama kolom untuk isian bertingkat, mis. "items.0."
+     * @return array<string, mixed>
+     */
+    protected function transactionRules(int $userId, mixed $type, string $prefix = ''): array
+    {
+        $ownedAccount = Rule::exists('accounts', 'id')->where('user_id', $userId);
+
+        return [
+            "{$prefix}type" => ['required', Rule::in(Transaction::TYPES)],
+            "{$prefix}amount" => ['required', 'integer', 'min:1', 'max:999999999999'],
+            "{$prefix}account_id" => ['required', 'integer', $ownedAccount],
+            "{$prefix}to_account_id" => ['nullable', "required_if:{$prefix}type,transfer", 'integer', "different:{$prefix}account_id", $ownedAccount],
+            "{$prefix}category_id" => ['nullable', 'integer', Rule::exists('categories', 'id')
                 ->where('user_id', $userId)
                 ->where('type', $type === 'income' ? 'income' : 'expense')],
-            'note' => ['nullable', 'string', 'max:160'],
-            ...$extraRules,
-        ], [
-            'amount.min' => 'Nominal belum diisi.',
-            'amount.required' => 'Nominal belum diisi.',
-            'to_account_id.required_if' => 'Pilih akun tujuan.',
-            'to_account_id.different' => 'Akun tujuan harus berbeda.',
-        ]);
+            "{$prefix}note" => ['nullable', 'string', 'max:160'],
+        ];
+    }
 
-        if ($type === 'transfer') {
+    /** @return array<string, string> */
+    protected function transactionMessages(string $prefix = ''): array
+    {
+        return [
+            "{$prefix}amount.min" => 'Nominal belum diisi.',
+            "{$prefix}amount.required" => 'Nominal belum diisi.',
+            "{$prefix}to_account_id.required_if" => 'Pilih akun tujuan.',
+            "{$prefix}to_account_id.different" => 'Akun tujuan harus berbeda.',
+        ];
+    }
+
+    /** Transfer tidak berkategori; selain transfer tidak punya akun tujuan. */
+    protected function normalizeTransaction(array $data): array
+    {
+        if ($data['type'] === 'transfer') {
             $data['category_id'] = null;
         } else {
             $data['to_account_id'] = null;

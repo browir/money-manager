@@ -1,13 +1,15 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Repeat, Search, Settings, Sun, Wallet } from 'lucide-vue-next';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
+import MoreSheet from '@/components/MoreSheet.vue';
 import OfflineBar from '@/components/OfflineBar.vue';
 import PullToRefresh from '@/components/PullToRefresh.vue';
 import SaveCelebration from '@/components/SaveCelebration.vue';
 import TransactionSheet from '@/components/TransactionSheet.vue';
+import VoiceSheet from '@/components/VoiceSheet.vue';
 import Toaster from '@/components/ui/Toaster.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
 import { useShortcuts } from '@/composables/useShortcuts';
@@ -16,6 +18,7 @@ import SisihMark from '@/components/ui/SisihMark.vue';
 
 const page = usePage();
 const paletteOpen = ref(false);
+const moreOpen = ref(false);
 const user = computed(() => page.props.auth.user);
 const initials = computed(() =>
     (user.value?.name ?? '')
@@ -35,9 +38,37 @@ const nav = [
     { label: 'Berulang', route: 'recurring.index', icon: Repeat, match: 'recurring/' },
     { label: 'Pengaturan', route: 'settings', icon: Settings, match: 'settings/' },
 ];
-const mobileNav = [nav[0], nav[1], null, nav[2], { label: 'Lainnya', route: 'settings', icon: MoreHorizontal, match: ['settings/', 'categories/', 'recurring/'] }];
+// "Lainnya" membuka sheet menu (kategori, berulang, pengaturan, tema, privasi), bukan halaman.
+const mobileNav = [nav[0], nav[1], null, nav[2], { label: 'Lainnya', more: true, icon: MoreHorizontal, match: ['settings/', 'categories/', 'recurring/'] }];
 
 const isActive = (item) => [].concat(item.match).some((m) => page.component.startsWith(m));
+
+// Ketuk tab yang sedang aktif: gulir ke atas dulu (seperti aplikasi HP); ketuk lagi di atas = muat ulang/atur ulang.
+function onTab(e, item) {
+    if (!isActive(item) || window.scrollY < 8) return;
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* Ganti bulan / filter (permintaan GET yang mempertahankan halaman): redupkan isi
+   sebentar agar jelas sedang memuat, terutama di jaringan HP yang lambat. */
+const busy = ref(false);
+let busyTimer = null;
+const stopListeners = [];
+onMounted(() => {
+    stopListeners.push(
+        router.on('start', (e) => {
+            const visit = e.detail.visit;
+            if (visit.method !== 'get' || !visit.preserveState || visit.prefetch) return;
+            busyTimer = setTimeout(() => (busy.value = true), 150);
+        }),
+        router.on('finish', () => {
+            clearTimeout(busyTimer);
+            busy.value = false;
+        }),
+    );
+});
+onUnmounted(() => stopListeners.forEach((stop) => stop()));
 
 // "g" lalu huruf untuk pindah halaman, gaya aplikasi desktop.
 let pendingG = 0;
@@ -142,7 +173,12 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 
         <!-- Konten -->
         <main class="min-w-0 pb-[calc(112px+env(safe-area-inset-bottom))] md:pb-16">
-            <div :key="page.component" class="page-enter mx-auto w-full max-w-[1080px] px-4 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-10 md:pt-10">
+            <div
+                :key="page.component"
+                class="page-enter mx-auto w-full max-w-[1080px] px-4 pt-[max(1.25rem,env(safe-area-inset-top))] transition-opacity duration-200 md:px-10 md:pt-10"
+                :class="busy && 'pointer-events-none opacity-55'"
+                :aria-busy="busy"
+            >
                 <OfflineBar />
                 <slot />
             </div>
@@ -164,12 +200,29 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
                     >
                         <Plus class="size-6" :stroke-width="2.4" />
                     </button>
+                    <button
+                        v-else-if="item.more"
+                        type="button"
+                        class="flex flex-col items-center gap-0.5 text-2xs transition-colors"
+                        :class="isActive(item) || moreOpen ? 'font-semibold text-accent-text' : 'text-muted'"
+                        :aria-expanded="moreOpen"
+                        @click="moreOpen = true"
+                    >
+                        <span
+                            class="flex h-7 w-12 items-center justify-center rounded-full transition-colors duration-200"
+                            :class="(isActive(item) || moreOpen) && 'bg-accent-soft'"
+                        >
+                            <component :is="item.icon" class="size-[20px]" :stroke-width="isActive(item) || moreOpen ? 2.2 : 1.7" />
+                        </span>
+                        {{ item.label }}
+                    </button>
                     <Link
                         v-else
                         :href="route(item.route)"
                         class="flex flex-col items-center gap-0.5 text-2xs transition-colors"
                         :class="isActive(item) ? 'font-semibold text-accent-text' : 'text-muted'"
                         :aria-current="isActive(item) ? 'page' : undefined"
+                        @click.capture="onTab($event, item)"
                     >
                         <span
                             class="grid h-7 w-12 place-items-center rounded-full transition-colors duration-200"
@@ -184,6 +237,8 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
         </nav>
 
         <TransactionSheet />
+        <VoiceSheet />
+        <MoreSheet v-model:open="moreOpen" />
         <CommandPalette v-model:open="paletteOpen" />
         <Toaster />
         <SaveCelebration />

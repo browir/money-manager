@@ -2,6 +2,7 @@
 import { useMediaQuery } from '@vueuse/core';
 import { X } from 'lucide-vue-next';
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { guardBack } from '@/composables/useBackGuard';
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -14,6 +15,7 @@ const panel = ref(null);
 const dragY = ref(0);
 const dragging = ref(false);
 let start = null;
+let releaseBack = null;
 
 function close() {
     emit('close');
@@ -32,6 +34,7 @@ watch(
         document.documentElement.style.overflow = open ? 'hidden' : '';
         if (open) {
             window.addEventListener('keydown', onKey);
+            releaseBack ??= guardBack(close);
             dragY.value = 0;
             await nextTick();
             // Di HP jangan fokus otomatis ke input: keyboard akan menutupi sheet.
@@ -39,12 +42,15 @@ watch(
             (target ?? panel.value)?.focus({ preventScroll: true });
         } else {
             window.removeEventListener('keydown', onKey);
+            releaseBack?.();
+            releaseBack = null;
         }
     },
 );
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKey);
+    releaseBack?.();
     document.documentElement.style.overflow = '';
 });
 

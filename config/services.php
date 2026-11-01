@@ -28,6 +28,22 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Catat lewat suara: teks ucapan diurai AI jadi draf transaksi (app/Support/TransactionParser.php).
+    // Gemini dipakai bila GEMINI_API_KEY terisi (kunci dari aistudio.google.com/app/apikey),
+    // selain itu Claude. Keduanya kosong = fitur suara mati. Kunci API terpisah dari langganan.
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        // Dicoba berurutan bila model tidak tersedia / kuotanya habis. Cek daftar di AI Studio.
+        'models' => array_values(array_filter(array_map('trim', explode(',',
+            env('GEMINI_MODELS') ?: 'gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash-lite'
+        )))),
+    ],
+
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL') ?: 'claude-opus-5-5',
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

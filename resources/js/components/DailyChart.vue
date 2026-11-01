@@ -26,6 +26,7 @@ const scaleMax = computed(() => {
     return step * magnitude;
 });
 
+const empty = computed(() => !props.daily.some((d) => d.expense));
 const spent = computed(() => props.daily.slice(0, lastDay.value).reduce((s, d) => s + d.expense, 0));
 const average = computed(() => (lastDay.value ? Math.round(spent.value / lastDay.value) : 0));
 
@@ -72,6 +73,10 @@ function tooltipLeft(index) {
                     <p v-if="activeDay.income" class="text-tiny opacity-70 tnum">masuk <Money :value="activeDay.income" /></p>
                 </div>
             </Transition>
+
+            <p v-if="empty" class="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 pr-10 text-center text-small text-muted">
+                Belum ada pengeluaran di periode ini
+            </p>
 
             <!-- Garis bantu -->
             <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2" aria-hidden="true">

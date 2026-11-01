@@ -56,7 +56,8 @@ class PeriodAndFilterTest extends TestCase
         $make = fn (string $date, int $amount) => $user->transactions()->create([
             'type' => 'expense', 'amount' => $amount, 'account_id' => $account->id, 'occurred_on' => $date,
         ]);
-        $make('2026-09-20', 1000); // periode sebelumnya
+        $make('2026-09-01', 1000); // periode sebelumnya, sebelum "titik yang sama" (hari ke-16)
+        $make('2026-09-20', 4000); // periode sebelumnya, sesudah titik itu: tidak ikut dibandingkan
         $make('2026-09-26', 2000);
         $make('2026-10-10', 3000);
 

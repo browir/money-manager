@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ValidatesTransactionFields;
 use App\Models\Transaction;
+use App\Support\TransactionParser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use RuntimeException;
 
 class TransactionController extends Controller
 {
@@ -93,6 +96,58 @@ class TransactionController extends Controller
         }
 
         return $this->stored($request, $transaction);
+    }
+
+    /**
+     * Catat lewat suara, langkah 1: teks ucapan -> draf transaksi lewat AI (belum disimpan).
+     * Dipanggil lewat fetch (JSON); pengguna meninjau draf sebelum menyimpan.
+     */
+    public function parse(Request $request, TransactionParser $parser)
+    {
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:1000'],
+            'default_account_id' => ['nullable', 'integer'],
+        ]);
+
+        if (! $parser->enabled()) {
+            return response()->json(['message' => 'Fitur suara belum aktif: isi GEMINI_API_KEY (atau ANTHROPIC_API_KEY) di server.'], 503);
+        }
+
+        try {
+            return response()->json($parser->parse($request->user(), $data['text'], $data['default_account_id'] ?? null));
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+    }
+
+    /** Catat lewat suara, langkah 2: simpan draf yang sudah ditinjau, semua atau tidak sama sekali. */
+    public function storeMany(Request $request)
+    {
+        $userId = $request->user()->id;
+        $request->validate(['items' => ['required', 'array', 'min:1', 'max:'.TransactionParser::MAX_ITEMS]]);
+
+        $rules = [];
+        foreach (array_keys($request->input('items')) as $i) {
+            $rules = [
+                ...$rules,
+                ...$this->transactionRules($userId, $request->input("items.{$i}.type"), "items.{$i}."),
+                "items.{$i}.occurred_on" => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
+            ];
+        }
+        $data = $request->validate($rules, [
+            ...$this->transactionMessages('items.*.'),
+            'items.*.occurred_on.before_or_equal' => 'Tanggal tidak boleh melewati hari ini.',
+        ]);
+
+        $created = DB::transaction(fn () => collect($data['items'])
+            ->map(fn ($item) => $request->user()->transactions()->create($this->normalizeTransaction($item))));
+
+        Inertia::flash('saved', $created->last()->id);
+        if ($created->count() > 1) {
+            Inertia::flash('toast', ['message' => $created->count().' transaksi tersimpan']);
+        }
+
+        return back();
     }
 
     /** Antrean offline mengirim lewat fetch biasa (JSON); form Inertia kembali ke halaman asal. */

@@ -1,6 +1,6 @@
 <script setup>
-import { router, useForm } from '@inertiajs/vue3';
-import { ArrowRight, ArrowRightLeft, CalendarDays, Copy, Repeat, Trash2, X } from 'lucide-vue-next';
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { ArrowRight, ArrowRightLeft, CalendarDays, Copy, Mic, Repeat, Trash2, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import Keypad from '@/components/Keypad.vue';
@@ -8,10 +8,12 @@ import CalendarPicker from '@/components/ui/CalendarPicker.vue';
 import Money from '@/components/ui/Money.vue';
 import Segmented from '@/components/ui/Segmented.vue';
 import Sheet from '@/components/ui/Sheet.vue';
+import { alertBudgets, snapshotBudgets } from '@/composables/useBudgetAlert';
 import { celebrate } from '@/composables/useCelebration';
 import { enqueue, newClientId } from '@/composables/useOutbox';
 import { pushToast } from '@/composables/useToast';
 import { closeQuickAdd, openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
+import { openVoice } from '@/composables/useVoice';
 import { useLedger } from '@/composables/useLedger';
 import { addDays, dayLabel, today } from '@/lib/dates';
 import { usePeriod } from '@/composables/usePeriod';
@@ -20,6 +22,7 @@ import { digits, evaluate, formatExpr, hasOperator, pressKey } from '@/lib/money
 import { color, tint } from '@/lib/palette';
 
 const state = useQuickAdd();
+const page = usePage();
 const { activeAccounts, categories, accountById, categoryById, noteSuggestions } = useLedger();
 
 const TYPES = [
@@ -54,10 +57,11 @@ watch(showCalendar, async (open) => {
 });
 
 // Yang paling sering dipakai (90 hari) di depan; sisanya ikut urutan manual (sort stabil).
+// Kategori darurat selalu di ujung agar tidak terpilih tanpa sengaja.
 const typeCategories = computed(() =>
     categories.value
         .filter((c) => c.type === (form.type === 'income' ? 'income' : 'expense'))
-        .sort((a, b) => (b.uses ?? 0) - (a.uses ?? 0)),
+        .sort((a, b) => a.urgent - b.urgent || (b.uses ?? 0) - (a.uses ?? 0)),
 );
 
 /* ---- Saran catatan dari riwayat ---- */
@@ -131,10 +135,11 @@ function reset() {
     form.to_account_id = tpl?.to_account_id ?? null;
     form.category_id = tpl?.category_id ?? null;
     form.note = tpl?.note ?? '';
-    form.occurred_on = tpl?.occurred_on && tpl.recurring_id ? tpl.occurred_on : today();
+    // Jadwal berulang & draf suara membawa tanggalnya sendiri; duplikat memakai hari ini.
+    form.occurred_on = tpl?.occurred_on && (tpl.recurring_id || tpl.fromVoice) ? tpl.occurred_on : today();
     form.recurring_id = tpl?.recurring_id ?? null;
     form.client_id = newClientId();
-    expr.value = tpl ? String(tpl.amount) : '';
+    expr.value = tpl?.amount ? String(tpl.amount) : '';
     if (form.type === 'transfer' && !form.to_account_id) form.to_account_id = targetAccounts.value[0]?.id ?? null;
 }
 
@@ -197,6 +202,7 @@ function submit() {
 
     // Rekam detail sekarang: form direset begitu sheet ditutup.
     const summary = describe();
+    const budgetsBefore = snapshotBudgets(categories.value);
 
     // Offline: transaksi baru masuk antrean di HP; perubahan belum bisa disimpan.
     if (!navigator.onLine) {
@@ -206,10 +212,11 @@ function submit() {
 
     const options = {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (p) => {
             remember({ account: form.account_id });
             closeQuickAdd();
             celebrate(summary);
+            alertBudgets(budgetsBefore, p.props.categories);
         },
         // Koneksi putus di tengah jalan: antre (client_id mencegah dobel bila ternyata sudah sampai).
         onNetworkError: () => {
@@ -288,6 +295,16 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
         <template #header>
             <div class="flex w-full items-center gap-2">
                 <Segmented v-model="form.type" :options="TYPES" class="flex-1" />
+                <button
+                    v-if="!editing && page.props.features?.voice"
+                    type="button"
+                    class="icon-btn -mr-1 text-accent-text"
+                    aria-label="Catat lewat suara"
+                    title="Catat lewat suara"
+                    @click="closeQuickAdd(), openVoice()"
+                >
+                    <Mic class="size-[18px]" />
+                </button>
                 <button
                     v-if="editing"
                     type="button"

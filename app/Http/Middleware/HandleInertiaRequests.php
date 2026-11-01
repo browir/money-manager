@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\TransactionParser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Middleware;
@@ -30,6 +31,11 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $user?->only(['id', 'name', 'email']),
+            ],
+            // Tombol "catat lewat suara" hanya muncul bila kunci API Gemini/Claude terpasang.
+            'features' => [
+                'voice' => app(TransactionParser::class)->enabled(),
+                'voiceProvider' => app(TransactionParser::class)->providerLabel(),
             ],
             // Awal periode bulanan (tanggal gajian) dan rentang periode berjalan.
             'period' => $period ? [

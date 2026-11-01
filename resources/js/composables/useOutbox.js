@@ -2,6 +2,7 @@ import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { route } from 'ziggy-js';
 import { pushToast } from '@/composables/useToast';
+import { postJson } from '@/lib/http';
 
 /**
  * Antrean transaksi baru yang dicatat saat offline. Disimpan di localStorage (data kecil,
@@ -51,11 +52,6 @@ export function removeFromOutbox(clientId) {
     write();
 }
 
-function xsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : '';
-}
-
 /** Kirim semua yang mengantre. Mengembalikan jumlah yang berhasil. */
 export async function flushOutbox() {
     if (sending.value || !items.value.length || !navigator.onLine) return 0;
@@ -68,17 +64,7 @@ export async function flushOutbox() {
 
             let response;
             try {
-                response = await fetch(route('transactions.store'), {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-XSRF-TOKEN': xsrfToken(),
-                    },
-                    body: JSON.stringify(item.payload),
-                });
+                response = await postJson(route('transactions.store'), item.payload);
             } catch {
                 break; // jaringan putus lagi: coba nanti
             }
