@@ -1,6 +1,7 @@
 import { computed, reactive, ref } from 'vue';
 import { route } from 'ziggy-js';
 import { postJson } from '@/lib/http';
+import { forSpeech } from '@/lib/lax';
 
 /**
  * Suara LAX. Dua sumber:
@@ -15,7 +16,7 @@ const KEY = 'sisih:speak';
 const SETTINGS_KEY = 'sisih:voice';
 const supported = typeof window !== 'undefined' && ('speechSynthesis' in window || 'Audio' in window);
 const deviceSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-const SAMPLE = 'Halo, Tuan. Saya LAX, asisten pribadi Anda. Semangat mencatat keuangan hari ini, ya!';
+const SAMPLE = 'Halo, Tuan. Saya LAX, asisten pribadi Anda. Semangat mencatat keuangan hari ini, ya!'; // "LAX" diucapkan lewat forSpeech()
 // WAV hening sangat pendek: memutarnya saat ketukan "membuka kunci" pemutar audio di iOS.
 const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 
@@ -216,6 +217,7 @@ export function speak(text, { force = false, onEnd = null } = {}) {
         onEnd?.();
         return;
     }
+    text = forSpeech(text);
     stopSpeaking();
     const id = ++token;
     if (usesCloud.value) speakCloud(text, id, onEnd);

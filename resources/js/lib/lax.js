@@ -10,7 +10,14 @@ export const LAX = {
     name: 'LAX',
     full: 'Ledger Assistant eXtraordinaire',
     motto: 'Lincah, Akurat, eXtra peduli',
+    // Cara mengucapkan nama: huruf kapital "LAX" dieja L-A-X oleh mesin suara, jadi tulis bunyinya.
+    spoken: 'Laks',
 };
+
+/** Siapkan teks untuk dibacakan: "LAX" diucapkan sebagai satu kata, bukan dieja. */
+export function forSpeech(text) {
+    return text.replace(/\bLAX\b/gi, LAX.spoken);
+}
 
 export const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
