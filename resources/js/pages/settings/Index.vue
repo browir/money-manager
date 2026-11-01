@@ -4,11 +4,14 @@ import { ChevronRight, Layers, LogOut, Repeat } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { route } from 'ziggy-js';
 import Segmented from '@/components/ui/Segmented.vue';
+import VoiceSettings from '@/components/VoiceSettings.vue';
+import { useSpeech } from '@/composables/useSpeech';
 import { setTheme, useTheme } from '@/composables/useTheme';
 import { periodOf, periodRangeLabel, today } from '@/lib/dates';
 
 const page = usePage();
 const theme = useTheme();
+const speech = useSpeech();
 
 const profile = useForm({
     name: page.props.auth.user.name,
@@ -80,6 +83,8 @@ const shortcuts = [
                 @update:model-value="setTheme"
             />
         </section>
+
+        <VoiceSettings v-if="speech.supported && page.props.features?.voice" />
 
         <section class="card p-5">
             <h2 class="section-title mb-1">Awal periode</h2>

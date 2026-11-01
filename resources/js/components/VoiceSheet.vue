@@ -2,7 +2,7 @@
 import { router, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle, Archive, ArchiveRestore, ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Info, Mic, Pencil, PencilLine,
-    Plus, RotateCcw, Scale, Sparkles, Square, Volume2, VolumeX, X,
+    Plus, RotateCcw, Scale, SlidersHorizontal, Sparkles, Square, Volume2, VolumeX, X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
@@ -355,7 +355,17 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
     <Sheet :open="state.open && voiceAvailable" title="Asisten" @close="closeVoice">
         <template #header>
             <div class="flex w-full items-center justify-between gap-3">
-                <h2 class="text-[17px] font-semibold tracking-tight">Asisten</h2>
+                <h2 class="flex-1 text-[17px] font-semibold tracking-tight">Asisten</h2>
+                <button
+                    v-if="speech.supported"
+                    type="button"
+                    class="icon-btn"
+                    aria-label="Atur suara asisten"
+                    title="Atur suara asisten"
+                    @click="closeVoice(), router.visit(route('settings') + '#suara-asisten')"
+                >
+                    <SlidersHorizontal class="size-[18px]" />
+                </button>
                 <button
                     v-if="speech.supported"
                     type="button"
