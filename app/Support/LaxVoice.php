@@ -39,56 +39,75 @@ class LaxVoice
         return filled(config('services.gemini.key'));
     }
 
-    /** @return string isi berkas WAV */
+    /**
+     * @return string isi berkas WAV
+     *
+     * @throws RuntimeException pesan ramah; kode 429 bila kuota habis (dipakai klien untuk memberi tahu)
+     */
     public function synthesize(string $text, string $voice): string
     {
         $lastStatus = null;
 
         foreach (config('services.gemini.tts_models') as $model) {
-            try {
-                $response = Http::timeout(30)
-                    ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
-                    ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
-                        'contents' => [['parts' => [[
-                            // Arahan gaya + perintah membaca PERSIS: tanpa ini model kadang menambah/mengubah kata,
-                            // sehingga ucapan berbeda dari kalimat yang dimaksud aplikasi.
-                            'text' => 'Bacakan teks di antara tanda kutip PERSIS kata demi kata, tanpa menambah, mengubah, '
-                                .'atau membacakan instruksi ini. Gaya: asisten pribadi perempuan yang anggun, hangat, ceria, '
-                                ."dan penuh hormat, dalam bahasa Indonesia.\n\"{$text}\"",
-                        ]]]],
-                        'generationConfig' => [
-                            'responseModalities' => ['AUDIO'],
-                            'speechConfig' => ['voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => $voice]]],
-                        ],
+            // Coba dengan arahan gaya dulu; bila model menolak (400 / tidak mengirim audio, mis.
+            // "model tried to generate text"), ulangi dengan teks polos agar tetap bersuara natural.
+            foreach ([self::styled($text), $text] as $attempt => $prompt) {
+                try {
+                    $response = Http::timeout(30)
+                        ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
+                        ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                            'contents' => [['parts' => [['text' => $prompt]]]],
+                            'generationConfig' => [
+                                'responseModalities' => ['AUDIO'],
+                                'speechConfig' => ['voiceConfig' => ['prebuiltVoiceConfig' => ['voiceName' => $voice]]],
+                            ],
+                        ]);
+                } catch (ConnectionException) {
+                    throw new RuntimeException('Gagal terhubung ke Gemini.');
+                }
+
+                if (in_array($response->status(), [404, 429], true)) {
+                    $lastStatus = $response->status();
+                    AiUsage::record('gemini', $model, 'voice', $response->status() === 429 ? 'rate_limited' : 'error');
+
+                    continue 2; // model berikutnya
+                }
+                AiUsage::record('gemini', $model, 'voice', $response->successful() ? 'ok' : 'error', AiUsage::geminiTokens($response->json('usageMetadata')));
+
+                $part = $response->successful()
+                    ? collect($response->json('candidates.0.content.parts', []))->first(fn ($p) => isset($p['inlineData']['data']))
+                    : null;
+                $pcm = $part ? base64_decode($part['inlineData']['data'], true) : false;
+
+                if (! $pcm) {
+                    Log::warning('Gemini TTS gagal', [
+                        'model' => $model, 'attempt' => $attempt, 'status' => $response->status(),
+                        'reason' => collect($response->json('error.details', []))->pluck('reason')->filter()->first(),
+                        'message' => $response->json('error.message') ?? $response->json('candidates.0.finishReason'),
                     ]);
-            } catch (ConnectionException) {
-                throw new RuntimeException('Gagal terhubung ke Gemini.');
-            }
+                    if ($response->status() === 403 || $response->json('error.details.0.reason') === 'API_KEY_INVALID') {
+                        throw new RuntimeException('Kunci API Gemini tidak valid.');
+                    }
 
-            if (in_array($response->status(), [404, 429], true)) {
-                $lastStatus = $response->status();
-                AiUsage::record('gemini', $model, 'voice', $response->status() === 429 ? 'rate_limited' : 'error');
+                    continue; // coba teks polos, lalu model berikutnya
+                }
 
-                continue;
-            }
-            AiUsage::record('gemini', $model, 'voice', $response->successful() ? 'ok' : 'error', AiUsage::geminiTokens($response->json('usageMetadata')));
-            if ($response->failed()) {
-                Log::warning('Gemini TTS gagal', ['model' => $model, 'status' => $response->status(), 'message' => $response->json('error.message')]);
-                throw new RuntimeException('Suara Gemini sedang bermasalah.');
-            }
+                // mimeType mis. "audio/L16;codec=pcm;rate=24000"
+                preg_match('/rate=(\d+)/', $part['inlineData']['mimeType'] ?? '', $m);
 
-            $part = collect($response->json('candidates.0.content.parts', []))->first(fn ($p) => isset($p['inlineData']['data']));
-            $pcm = $part ? base64_decode($part['inlineData']['data'], true) : false;
-            if (! $pcm) {
-                throw new RuntimeException('Gemini tidak mengirim audio.');
+                return self::wav($pcm, (int) ($m[1] ?? 24000));
             }
-            // mimeType mis. "audio/L16;codec=pcm;rate=24000"
-            preg_match('/rate=(\d+)/', $part['inlineData']['mimeType'] ?? '', $m);
-
-            return self::wav($pcm, (int) ($m[1] ?? 24000));
         }
 
-        throw new RuntimeException($lastStatus === 429 ? 'Kuota suara Gemini habis.' : 'Model suara Gemini tidak tersedia. Periksa GEMINI_TTS_MODELS.');
+        throw $lastStatus === 429
+            ? new RuntimeException('Kuota suara Gemini hari ini habis.', 429)
+            : new RuntimeException('Suara Gemini sedang tidak tersedia.');
+    }
+
+    /** Arahan gaya singkat (format yang dianjurkan Google: "<gaya>: <teks>"). */
+    private static function styled(string $text): string
+    {
+        return "Ucapkan dengan hangat, ceria, dan penuh hormat, seperti asisten pribadi perempuan yang anggun: {$text}";
     }
 
     /** Bungkus PCM 16-bit mono dengan header WAV (RIFF). */

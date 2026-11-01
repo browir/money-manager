@@ -53,7 +53,8 @@ class AssistantController extends Controller
         try {
             $wav = $voice->synthesize($data['text'], $data['voice'] ?? LaxVoice::DEFAULT_VOICE);
         } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 502);
+            // 429 = kuota habis (klien memberi tahu pengguna & memakai suara HP), selain itu 502.
+            return response()->json(['message' => $e->getMessage()], $e->getCode() === 429 ? 429 : 502);
         }
 
         return response($wav, 200, ['Content-Type' => 'audio/wav', 'Cache-Control' => 'private, max-age=86400']);

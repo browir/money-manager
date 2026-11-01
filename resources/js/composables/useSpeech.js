@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from 'vue';
 import { route } from 'ziggy-js';
+import { pushToast } from '@/composables/useToast';
 import { postJson } from '@/lib/http';
 import { forSpeech } from '@/lib/lax';
 
@@ -111,6 +112,37 @@ let audio = null;
 let token = 0; // ucapan yang lebih baru membatalkan yang lama
 let safety = null;
 const cache = new Map(); // "suara|teks" -> object URL audio Gemini (kalimat sapaan sering berulang)
+// Simpanan permanen di perangkat (Cache Storage): sapaan & konfirmasi yang sama tidak memakai
+// kuota Gemini lagi, termasuk setelah aplikasi ditutup. Dihapus saat keluar (app.js).
+export const VOICE_CACHE = 'lax-voice-v1';
+const cacheKey = (voice, text) => `/__lax-voice/${encodeURIComponent(voice)}?t=${encodeURIComponent(text)}`;
+
+async function stored(voice, text) {
+    try {
+        const hit = await (await caches.open(VOICE_CACHE)).match(cacheKey(voice, text));
+        return hit ? await hit.blob() : null;
+    } catch {
+        return null; // Cache Storage tidak tersedia (mis. bukan https)
+    }
+}
+async function store(voice, text, blob) {
+    try {
+        const box = await caches.open(VOICE_CACHE);
+        await box.put(cacheKey(voice, text), new Response(blob, { headers: { 'Content-Type': 'audio/wav' } }));
+        const keys = await box.keys();
+        for (const old of keys.slice(0, Math.max(0, keys.length - 150))) await box.delete(old); // batasi ±150 kalimat
+    } catch {
+        // abaikan
+    }
+}
+
+/* Beri tahu sekali per sesi kenapa LAX memakai suara HP (kuota habis / Gemini bermasalah). */
+let warned = false;
+function warnFallback(message) {
+    if (warned) return;
+    warned = true;
+    pushToast({ message: `${message} Sementara LAX memakai suara HP.`, tone: 'warn' });
+}
 
 function player() {
     audio ??= new Audio();
@@ -168,14 +200,30 @@ function speakDevice(text, id, onEnd) {
 }
 
 async function speakCloud(text, id, onEnd) {
-    const key = `${settings.cloudVoice}|${text}`;
+    const voice = settings.cloudVoice;
+    const key = `${voice}|${text}`;
     let url = cache.get(key);
     if (!url) {
         loading.value = true;
         try {
-            const response = await postJson(route('assistant.speak'), { text, voice: settings.cloudVoice });
-            if (!response.ok) throw new Error(String(response.status));
-            url = URL.createObjectURL(await response.blob());
+            let blob = await stored(voice, text);
+            if (!blob) {
+                const response = await postJson(route('assistant.speak'), { text, voice });
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    warnFallback(
+                        response.status === 429
+                            ? body.message?.includes('Kuota')
+                                ? 'Kuota suara Gemini hari ini habis.'
+                                : 'Terlalu sering meminta suara.'
+                            : body.message || 'Suara Gemini sedang tidak tersedia.',
+                    );
+                    throw new Error(String(response.status));
+                }
+                blob = await response.blob();
+                store(voice, text, blob);
+            }
+            url = URL.createObjectURL(blob);
             cache.set(key, url);
             if (cache.size > 40) {
                 const [oldKey, oldUrl] = cache.entries().next().value;

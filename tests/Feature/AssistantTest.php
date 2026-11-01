@@ -308,4 +308,21 @@ class AssistantTest extends TestCase
         $this->fakeAi(['reply' => 'Saldo BCA Rp 2.000.000.', 'speak_amounts' => false]);
         $this->postJson(route('assistant.parse'), ['text' => 'bacakan saldo BCA'])->assertJsonPath('speak_amounts', false);
     }
+
+    public function test_suara_gemini_coba_teks_polos_dan_lapor_kuota_habis(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji', 'services.gemini.tts_models' => ['tts-a']]);
+        Http::fake(['*' => Http::sequence()
+            // Arahan gaya ditolak -> diulang dengan teks polos -> berhasil.
+            ->push(['error' => ['code' => 400, 'message' => 'Model tried to generate text']], 400)
+            ->push(['candidates' => [['content' => ['parts' => [['inlineData' => ['mimeType' => 'audio/L16;codec=pcm;rate=24000', 'data' => base64_encode("\0\0")]]]]]]])
+            // Permintaan kedua: kuota habis.
+            ->push(['error' => ['code' => 429]], 429)]);
+
+        $this->actingAs($this->user)->post(route('assistant.speak'), ['text' => 'Siap, Tuan.'])->assertOk()->assertHeader('Content-Type', 'audio/wav');
+        Http::assertSent(fn (Request $r) => $r['contents'][0]['parts'][0]['text'] === 'Siap, Tuan.');
+
+        $this->postJson(route('assistant.speak'), ['text' => 'Halo, Tuan.'])
+            ->assertStatus(429)->assertJsonPath('message', 'Kuota suara Gemini hari ini habis.');
+    }
 }
