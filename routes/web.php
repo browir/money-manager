@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
@@ -22,9 +23,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/transaksi', [TransactionController::class, 'index'])->name('transactions.index');
     Route::post('/transaksi', [TransactionController::class, 'store'])->name('transactions.store');
-    // Catat lewat suara (Gemini/Claude). Dibatasi agar biaya API tidak bocor bila ada yang menekan berulang.
-    Route::post('/transaksi/suara', [TransactionController::class, 'parse'])->middleware('throttle:20,1')->name('transactions.parse');
-    Route::post('/transaksi/banyak', [TransactionController::class, 'storeMany'])->name('transactions.storeMany');
     Route::put('/transaksi/{transaction}', [TransactionController::class, 'update'])->name('transactions.update');
     Route::delete('/transaksi/{transaction}', [TransactionController::class, 'destroy'])->name('transactions.destroy');
     Route::post('/transaksi/{id}/kembalikan', [TransactionController::class, 'restore'])->name('transactions.restore');
@@ -46,6 +44,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/berulang/{recurring}', [RecurringController::class, 'destroy'])->name('recurring.destroy');
     Route::post('/berulang/{recurring}/catat', [RecurringController::class, 'record'])->name('recurring.record');
     Route::post('/berulang/{recurring}/lewati', [RecurringController::class, 'skip'])->name('recurring.skip');
+
+    // Asisten suara (Gemini/Claude). Urai dibatasi agar biaya/kuota API tidak bocor bila ditekan berulang.
+    Route::post('/asisten', [AssistantController::class, 'parse'])->middleware('throttle:20,1')->name('assistant.parse');
+    Route::post('/asisten/jalankan', [AssistantController::class, 'apply'])->name('assistant.apply');
 
     Route::get('/pengaturan', [SettingsController::class, 'edit'])->name('settings');
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');

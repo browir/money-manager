@@ -2,15 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
 use App\Models\User;
-use App\Support\TransactionParser;
+use App\Support\VoiceAssistant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-/** Catat lewat suara: jawaban Claude dipalsukan, yang diuji validasi & penyimpanannya. */
-class VoiceEntryTest extends TestCase
+/** Asisten suara: jawaban AI dipalsukan, yang diuji pembersihan, validasi & penjalanannya. */
+class AssistantTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -29,9 +30,10 @@ class VoiceEntryTest extends TestCase
     }
 
     /** Ganti panggilan API dengan jawaban tetap. */
-    private function fakeClaude(array $answer): void
+    private function fakeAi(array $answer): void
     {
-        $this->app->instance(TransactionParser::class, new class($answer) extends TransactionParser
+        $answer += ['reply' => null, 'unclear' => null, 'items' => [], 'account_actions' => []];
+        $this->app->instance(VoiceAssistant::class, new class($answer) extends VoiceAssistant
         {
             public function __construct(private array $answer) {}
 
@@ -59,7 +61,7 @@ class VoiceEntryTest extends TestCase
     {
         config(['services.anthropic.key' => null, 'services.gemini.key' => null]);
 
-        $this->actingAs($this->user)->postJson(route('transactions.parse'), ['text' => 'bakso goceng'])
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso goceng'])
             ->assertStatus(503);
     }
 
@@ -76,7 +78,7 @@ class VoiceEntryTest extends TestCase
             ]]]),
         ]);
 
-        $items = $this->actingAs($this->user)->postJson(route('transactions.parse'), ['text' => 'bakso 25 ribu pakai cash'])
+        $items = $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso 25 ribu pakai cash'])
             ->assertOk()->json('items');
 
         $this->assertSame(25000, $items[0]['amount']);
@@ -95,10 +97,10 @@ class VoiceEntryTest extends TestCase
             ->push(['error' => ['code' => 400, 'message' => 'API key not valid.', 'details' => [['reason' => 'API_KEY_INVALID']]]], 400)
             ->push([], 429)]);
 
-        $this->actingAs($this->user)->postJson(route('transactions.parse'), ['text' => 'bakso'])
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])
             ->assertStatus(502)->assertJsonPath('message', 'Kunci API Gemini tidak valid. Periksa GEMINI_API_KEY di server.');
 
-        $this->postJson(route('transactions.parse'), ['text' => 'bakso'])
+        $this->postJson(route('assistant.parse'), ['text' => 'bakso'])
             ->assertStatus(502)->assertJsonPath('message', 'Kuota Gemini habis untuk saat ini. Coba lagi nanti, atau catat manual dulu.');
     }
 
@@ -107,7 +109,7 @@ class VoiceEntryTest extends TestCase
         $stranger = User::factory()->create();
         $foreignAccount = $stranger->accounts()->create(['name' => 'X', 'type' => 'cash', 'color' => 'moss', 'initial_balance' => 0, 'sort' => 0]);
 
-        $this->fakeClaude(['unclear' => null, 'items' => [
+        $this->fakeAi(['unclear' => null, 'items' => [
             // Akun milik orang lain + kategori pemasukan untuk pengeluaran -> diganti/dibuang.
             $this->item(['account_id' => $foreignAccount->id, 'category_id' => $this->ids['salary']]),
             // Nominal tidak disebut, tanggal masa depan.
@@ -119,7 +121,7 @@ class VoiceEntryTest extends TestCase
         ]]);
 
         $items = $this->actingAs($this->user)
-            ->postJson(route('transactions.parse'), ['text' => 'contoh', 'default_account_id' => $this->ids['bank']])
+            ->postJson(route('assistant.parse'), ['text' => 'contoh', 'default_account_id' => $this->ids['bank']])
             ->assertOk()
             ->json('items');
 
@@ -142,9 +144,9 @@ class VoiceEntryTest extends TestCase
         $this->assertSame(0, $this->user->transactions()->count());
     }
 
-    public function test_simpan_banyak_menyimpan_semua_draf(): void
+    public function test_jalankan_menyimpan_semua_draf(): void
     {
-        $this->actingAs($this->user)->post(route('transactions.storeMany'), ['items' => [
+        $this->actingAs($this->user)->post(route('assistant.apply'), ['items' => [
             $this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']]),
             $this->item(['type' => 'income', 'amount' => 5000000, 'account_id' => $this->ids['bank'], 'category_id' => $this->ids['salary'], 'note' => 'Gaji']),
             $this->item(['type' => 'transfer', 'amount' => 200000, 'account_id' => $this->ids['bank'], 'to_account_id' => $this->ids['cash'], 'category_id' => $this->ids['food'], 'note' => 'Tarik tunai']),
@@ -155,12 +157,12 @@ class VoiceEntryTest extends TestCase
         $this->assertNull($this->user->transactions()->where('type', 'transfer')->value('category_id'));
     }
 
-    public function test_simpan_banyak_menolak_semua_bila_satu_tidak_valid(): void
+    public function test_jalankan_menolak_semua_bila_satu_tidak_valid(): void
     {
         $stranger = User::factory()->create();
         $foreign = $stranger->accounts()->create(['name' => 'X', 'type' => 'cash', 'color' => 'moss', 'initial_balance' => 0, 'sort' => 0]);
 
-        $this->actingAs($this->user)->post(route('transactions.storeMany'), ['items' => [
+        $this->actingAs($this->user)->post(route('assistant.apply'), ['items' => [
             $this->item(['account_id' => $this->ids['cash']]),
             $this->item(['account_id' => $foreign->id]),
             $this->item(['account_id' => $this->ids['cash'], 'amount' => 0]),
@@ -168,5 +170,97 @@ class VoiceEntryTest extends TestCase
         ]])->assertSessionHasErrors(['items.1.account_id', 'items.2.amount', 'items.3.occurred_on']);
 
         $this->assertSame(0, $this->user->transactions()->count());
+    }
+
+    private function balance(int $accountId): int
+    {
+        return (int) Account::withBalance()->whereKey($accountId)->value('balance');
+    }
+
+    public function test_usulan_akun_dibersihkan(): void
+    {
+        $this->user->accounts()->create(['name' => 'Lama', 'type' => 'bank', 'color' => 'ink', 'initial_balance' => 0, 'sort' => 2, 'archived_at' => now()]);
+        $act = fn (array $a) => $a + ['account_id' => null, 'name' => null, 'type' => null, 'amount' => null, 'note' => null];
+        $this->fakeAi(['reply' => 'Saldo BCA Rp 0.', 'encouragement' => 'Mantap, rajin mencatat! Saldomu tinggal Rp 5.000. Sisihkan dua ratus ribu ya.', 'account_actions' => [
+            $act(['action' => 'create', 'name' => 'Jago', 'type' => 'bank', 'amount' => 500000]),
+            $act(['action' => 'create', 'name' => 'bca', 'type' => 'bank']), // sudah ada
+            $act(['action' => 'create', 'name' => 'Dompet', 'type' => 'aneh']),
+            $act(['action' => 'adjust_balance', 'account_id' => $this->ids['cash'], 'amount' => 300000]),
+            $act(['action' => 'adjust_balance', 'account_id' => $this->ids['bank'], 'amount' => 0]), // sudah sesuai
+            $act(['action' => 'archive', 'account_id' => 999999]), // tidak ada
+            $act(['action' => 'hapus', 'account_id' => $this->ids['cash']]), // tidak didukung
+        ]]);
+
+        $body = $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'contoh'])->assertOk()->json();
+        $actions = $body['account_actions'];
+
+        $this->assertSame('Saldo BCA Rp 0.', $body['reply']);
+        // Yang diucapkan tidak boleh berisi nominal: kalimat beranggka dibuang.
+        $this->assertSame('Mantap, rajin mencatat!', $body['encouragement']);
+        $this->assertCount(4, $actions);
+        $this->assertSame([], $actions[0]['issues']);
+        $this->assertSame(500000, $actions[0]['amount']);
+        $this->assertSame(['Akun bernama bca sudah ada'], $actions[1]['issues']);
+        $this->assertSame('other', $actions[2]['type']);
+        $this->assertSame(0, $actions[2]['amount']);
+        $this->assertSame('adjust_balance', $actions[3]['action']);
+        $this->assertSame(0, $actions[3]['current_balance']);
+        $this->assertStringContainsString('sudah Rp 0', $body['unclear']);
+        $this->assertStringContainsString('tidak ditemukan', $body['unclear']);
+        $this->assertSame(0, $this->user->accounts()->where('name', 'Jago')->count()); // belum ada yang disimpan
+    }
+
+    public function test_jalankan_aksi_akun_berurutan(): void
+    {
+        $old = $this->user->accounts()->create(['name' => 'Lama', 'type' => 'bank', 'color' => 'ink', 'initial_balance' => 0, 'sort' => 2, 'archived_at' => now()]);
+
+        $this->actingAs($this->user)->post(route('assistant.apply'), [
+            'items' => [$this->item(['account_id' => $this->ids['cash'], 'amount' => 25000])],
+            'account_actions' => [
+                // Saldo dihitung SETELAH transaksi di atas: hasil akhir tepat 300rb.
+                ['action' => 'adjust_balance', 'account_id' => $this->ids['cash'], 'amount' => 300000, 'note' => 'Hitung dompet'],
+                ['action' => 'create', 'name' => 'Jago', 'type' => 'bank', 'amount' => 500000],
+                ['action' => 'rename', 'account_id' => $this->ids['bank'], 'name' => 'BCA Utama'],
+                ['action' => 'unarchive', 'account_id' => $old->id],
+                ['action' => 'archive', 'account_id' => $this->ids['bank']],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(300000, $this->balance($this->ids['cash']));
+        $this->assertSame(325000, $this->user->transactions()->where('type', 'adjustment')->value('amount'));
+        $jago = $this->user->accounts()->where('name', 'Jago')->firstOrFail();
+        $this->assertSame(['bank', 'ink', 500000], [$jago->type, $jago->color, $this->balance($jago->id)]);
+        $bank = $this->user->accounts()->find($this->ids['bank']);
+        $this->assertSame('BCA Utama', $bank->name);
+        $this->assertNotNull($bank->archived_at);
+        $this->assertNull($old->fresh()->archived_at);
+    }
+
+    public function test_jalankan_aksi_akun_tidak_valid_membatalkan_semua(): void
+    {
+        $foreign = User::factory()->create()->accounts()->create(['name' => 'X', 'type' => 'cash', 'color' => 'moss', 'initial_balance' => 0, 'sort' => 0]);
+
+        $this->actingAs($this->user)->post(route('assistant.apply'), [
+            'items' => [$this->item(['account_id' => $this->ids['cash']])],
+            'account_actions' => [
+                ['action' => 'create', 'name' => 'Jago', 'type' => 'bank'],
+                ['action' => 'rename', 'account_id' => $foreign->id, 'name' => 'Curian'],
+                ['action' => 'adjust_balance', 'account_id' => $this->ids['cash']],
+                ['action' => 'create', 'name' => '', 'type' => 'planet'],
+                ['action' => 'delete', 'account_id' => $this->ids['cash']],
+            ],
+        ])->assertSessionHasErrors([
+            'account_actions.1.account_id', 'account_actions.2.amount',
+            'account_actions.3.name', 'account_actions.3.type', 'account_actions.4.action',
+        ]);
+
+        $this->assertSame(0, $this->user->transactions()->count());
+        $this->assertSame(0, $this->user->accounts()->where('name', 'Jago')->count());
+        $this->assertSame('X', $foreign->fresh()->name);
+    }
+
+    public function test_jalankan_tanpa_isi_ditolak(): void
+    {
+        $this->actingAs($this->user)->post(route('assistant.apply'), [])->assertSessionHasErrors('items');
     }
 }

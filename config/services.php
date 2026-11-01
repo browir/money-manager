@@ -28,7 +28,7 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    // Catat lewat suara: teks ucapan diurai AI jadi draf transaksi (app/Support/TransactionParser.php).
+    // Asisten suara: ucapan diurai AI jadi usulan transaksi/perubahan akun (app/Support/VoiceAssistant.php).
     // Gemini dipakai bila GEMINI_API_KEY terisi (kunci dari aistudio.google.com/app/apikey),
     // selain itu Claude. Keduanya kosong = fitur suara mati. Kunci API terpisah dari langganan.
     'gemini' => [

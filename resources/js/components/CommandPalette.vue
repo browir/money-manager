@@ -20,7 +20,7 @@ const commands = [
     { group: 'Catat', label: 'Catat pengeluaran', icon: ArrowUpRight, hint: 'N', run: () => openQuickAdd({ type: 'expense' }) },
     { group: 'Catat', label: 'Catat pemasukan', icon: ArrowDownLeft, run: () => openQuickAdd({ type: 'income' }) },
     { group: 'Catat', label: 'Transfer antar akun', icon: ArrowRightLeft, run: () => openQuickAdd({ type: 'transfer' }) },
-    ...(usePage().props.features?.voice ? [{ group: 'Catat', label: 'Catat lewat suara', icon: Mic, run: openVoice }] : []),
+    ...(usePage().props.features?.voice ? [{ group: 'Catat', label: 'Asisten suara (catat, atur akun, tanya)', icon: Mic, run: openVoice }] : []),
     { group: 'Buka', label: 'Beranda', icon: Home, hint: 'G B', run: go('dashboard') },
     { group: 'Buka', label: 'Transaksi', icon: List, hint: 'G T', run: go('transactions.index') },
     { group: 'Buka', label: 'Akun', icon: Wallet, hint: 'G A', run: go('accounts.index') },

@@ -299,8 +299,8 @@ const amountTone = computed(() => ({ income: 'text-pos', transfer: 'text-ink-2' 
                     v-if="!editing && page.props.features?.voice"
                     type="button"
                     class="icon-btn -mr-1 text-accent-text"
-                    aria-label="Catat lewat suara"
-                    title="Catat lewat suara"
+                    aria-label="Asisten suara"
+                    title="Asisten suara"
                     @click="closeQuickAdd(), openVoice()"
                 >
                     <Mic class="size-[18px]" />

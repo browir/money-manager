@@ -123,7 +123,7 @@ const quickActions = computed(() => [
     { label: 'Keluar', icon: ArrowUpRight, run: () => openQuickAdd({ type: 'expense' }) },
     { label: 'Masuk', icon: ArrowDownLeft, run: () => openQuickAdd({ type: 'income' }) },
     { label: 'Transfer', icon: ArrowRightLeft, run: () => openQuickAdd({ type: 'transfer' }) },
-    ...(page.props.features?.voice ? [{ label: 'Suara', icon: Mic, run: openVoice }] : []),
+    ...(page.props.features?.voice ? [{ label: 'Asisten', icon: Mic, run: openVoice }] : []),
 ]);
 
 /** Latar kartu akun: gradasi warna identitas di atas permukaan. */
