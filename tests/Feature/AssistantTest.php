@@ -6,11 +6,17 @@ use App\Models\Account;
 use App\Models\AssistantExample;
 use App\Models\User;
 use App\Support\LaxVoice;
+use App\Support\LocalAccuracy;
+use App\Support\LocalParser;
 use App\Support\VoiceAssistant;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\TestCase;
 
 /** Asisten suara: jawaban AI dipalsukan, yang diuji pembersihan, validasi & penjalanannya. */
@@ -218,6 +224,96 @@ class AssistantTest extends TestCase
         $this->delete(route('settings.ai.examples'))->assertRedirect();
         $this->assertSame(0, AssistantExample::where('user_id', $this->user->id)->count());
         $this->assertModelExists($foreign);
+    }
+
+    public function test_mesin_lokal_ikut_menjawab_diam_diam(): void
+    {
+        $this->fakeAi(['items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])]]);
+
+        $response = $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso 30 ribu pakai bca'])->assertOk();
+
+        $response->assertJsonMissingPath('local');
+        $this->assertSame(25000, $response->json('items.0.amount')); // klien tetap menerima jawaban AI
+
+        $local = AssistantExample::findOrFail($response->json('example_id'))->proposal['local'];
+        $this->assertSame(30000, $local['items'][0]['amount']);
+        $this->assertSame($this->ids['bank'], $local['items'][0]['account_id']);
+        $this->assertArrayNotHasKey('issues', $local['items'][0]);
+    }
+
+    public function test_mesin_lokal_gagal_tidak_mengganggu_asisten(): void
+    {
+        $this->fakeAi(['items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])]]);
+        $this->app->instance(LocalParser::class, new class extends LocalParser
+        {
+            public function parse(string $text, Collection $accounts, Collection $categories, CarbonImmutable $today, ?object $totals = null, array $training = []): array
+            {
+                throw new RuntimeException('rusak');
+            }
+        });
+
+        $response = $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])->assertOk();
+
+        $this->assertSame(25000, $response->json('items.0.amount'));
+        $this->assertNull(AssistantExample::findOrFail($response->json('example_id'))->proposal['local']);
+    }
+
+    public function test_akurasi_mesin_lokal_dibanding_hasil_akhir(): void
+    {
+        $item = fn (array $override = []) => $this->item($override + ['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']]);
+        $add = fn (array $local, array $final, ?int $userId = null) => AssistantExample::create([
+            'user_id' => $userId ?? $this->user->id,
+            'text' => 'x',
+            'proposal' => ['items' => [], 'local' => ['items' => $local, 'answered' => false]],
+            'final' => ['items' => $final],
+            'applied_at' => now(),
+        ]);
+
+        $add([$item()], [$item()]); // semua benar
+        $add([$item(['amount' => 0])], [$item()]); // nominal dikosongkan
+        $add([$item(['amount' => 99000, 'category_id' => null])], [$item()]); // nominal & kategori salah
+        $add([$item(['amount' => 5000]), $item(['amount' => 25000])], [$item()]); // urutan beda, satu usulan dibuang pengguna
+
+        // Tidak dihitung: belum disimpan, tanpa jawaban lokal, dan milik orang lain.
+        AssistantExample::create(['user_id' => $this->user->id, 'text' => 'x', 'proposal' => ['items' => [], 'local' => ['items' => [$item()]]]]);
+        AssistantExample::create(['user_id' => $this->user->id, 'text' => 'x', 'proposal' => ['items' => [], 'local' => null], 'final' => ['items' => [$item()]], 'applied_at' => now()]);
+        $add([$item(['amount' => 1])], [$item()], User::factory()->create()->id);
+
+        $accuracy = LocalAccuracy::measure($this->user);
+
+        $this->assertSame(4, $accuracy['examples']);
+        $this->assertSame(4, $accuracy['items']);
+        $this->assertSame(50, $accuracy['amount_right']);
+        $this->assertSame(25, $accuracy['amount_wrong']);
+        $this->assertSame(25, $accuracy['amount_blank']);
+        $this->assertSame(75, $accuracy['category']);
+        $this->assertSame(100, $accuracy['type']);
+        $this->assertSame(75, $accuracy['item_count']);
+
+        $this->actingAs($this->user)->get(route('settings.ai'))->assertInertia(fn (Assert $page) => $page
+            ->where('examples.accuracy.examples', 4)
+            ->where('examples.accuracy.amount_wrong', 25));
+    }
+
+    public function test_akurasi_kosong_dan_usulan_terlewat(): void
+    {
+        $this->assertSame(0, LocalAccuracy::measure($this->user)['examples']);
+
+        // Pengguna menyimpan dua transaksi, mesin lokal hanya menemukan satu.
+        AssistantExample::create([
+            'user_id' => $this->user->id,
+            'text' => 'x',
+            'proposal' => ['items' => [], 'local' => ['items' => [$this->item(['account_id' => $this->ids['cash']])], 'answered' => false]],
+            'final' => ['items' => [$this->item(['account_id' => $this->ids['cash']]), $this->item(['amount' => 10000, 'account_id' => $this->ids['cash']])]],
+            'applied_at' => now(),
+        ]);
+
+        $accuracy = LocalAccuracy::measure($this->user);
+        $this->assertSame(50, $accuracy['amount_right']);
+        $this->assertSame(50, $accuracy['amount_blank']);
+        $this->assertSame(0, $accuracy['amount_wrong']);
+        $this->assertSame(50, $accuracy['account']);
+        $this->assertSame(0, $accuracy['item_count']);
     }
 
     public function test_draf_dibersihkan_dari_id_dan_nilai_tidak_valid(): void

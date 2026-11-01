@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AiUsage;
 use App\Models\AssistantExample;
 use App\Support\LaxVoice;
+use App\Support\LocalAccuracy;
 use App\Support\VoiceAssistant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -82,6 +83,7 @@ class AiUsageController extends Controller
                 'total' => (clone $examples)->count(),
                 'applied' => (clone $examples)->whereNotNull('applied_at')->count(),
                 'keepDays' => AssistantExample::KEEP_DAYS,
+                'accuracy' => LocalAccuracy::measure($request->user()),
             ] : null,
             'recent' => $rows->take(8)->map(fn ($u) => [
                 'at' => $u->created_at->toIso8601String(),

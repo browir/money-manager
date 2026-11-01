@@ -37,7 +37,7 @@ class AssistantController extends Controller
 
             return response()->json([
                 ...$result,
-                'example_id' => AssistantExample::capture($request->user(), $data['text'], $data['default_account_id'] ?? null, $assistant->lastModel, $result),
+                'example_id' => AssistantExample::capture($request->user(), $data['text'], $data['default_account_id'] ?? null, $assistant->lastModel, $result, $assistant->lastLocal),
             ]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 502);

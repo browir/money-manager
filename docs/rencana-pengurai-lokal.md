@@ -1,6 +1,6 @@
 # Rencana: Pengurai Lokal LAX (cadangan saat kuota Gemini habis)
 
-Status: Tahap 1–2 dikerjakan, Tahap 3–5 belum · disusun 1 Nov 2026
+Status: Tahap 1–3 dikerjakan, Tahap 4 menunggu data, Tahap 5 belum · disusun 1 Nov 2026
 
 Tujuan: selama kuota ada, Gemini yang menjawab sambil data latih terkumpul. Saat semua model Gemini gagal, LAX tetap bisa mencatat transaksi lewat mesin lokal yang belajar dari data itu.
 
@@ -59,13 +59,17 @@ Nominal sengaja dikosongkan, dan LAX bertanya, bila: nominal bisa dibaca dua car
 
 Batasan yang diketahui: `nabung` dan `masuk angin` bisa salah jenis, karena hanya dibaca dari kata kunci. Akurasinya belum terukur dengan ucapan asli; itu tugas Tahap 3.
 
-## Tahap 3: Uji diam-diam
+## Tahap 3: Uji diam-diam (dikerjakan)
 
-Selama Gemini aktif, mesin lokal ikut menjawab tanpa ditampilkan, lalu hasilnya dibandingkan dengan `final`. Tidak memakai token. Akurasi per kolom tampil di halaman Pemakaian AI.
+Selama AI berhasil menjawab, mesin lokal ikut menjawab tanpa ditampilkan dan tanpa memakai token. Jawabannya disimpan di `proposal.local`, sehingga tidak perlu migrasi baru. Data latihnya hanya yang sudah ada saat itu, jadi ucapan tersebut tidak ikut melatih dirinya sendiri.
+
+`App\Support\LocalAccuracy` membandingkannya dengan `final` dan hasilnya tampil di halaman Pemakaian AI. Nominal dipisah menjadi benar, salah, dan dikosongkan, karena yang dikosongkan akan ditanyakan sedangkan yang salah bisa lolos dari tinjauan.
+
+Belum diukur: jawaban pertanyaan (tidak ada hasil akhir sebagai pembanding), perubahan akun, dan contoh yang tersimpan sebelum tahap ini.
 
 ## Tahap 4: Aktifkan cadangan
 
-`VoiceAssistant::ask()` memakai mesin lokal saat semua model Gemini gagal, kecuali kunci API salah. Layar menampilkan penanda "mode hemat". Syarat aktif: akurasi nominal Tahap 3 cukup tinggi; ambang persisnya ditetapkan setelah ada angkanya.
+`VoiceAssistant::ask()` memakai mesin lokal saat semua model Gemini gagal, kecuali kunci API salah. Layar menampilkan penanda "mode hemat". Usulan syarat aktif: minimal 30 ucapan terbandingkan dengan nominal salah mendekati 0%, karena nominal kosong tetap aman. Ambang akhirnya diputuskan pemilik setelah ada angkanya.
 
 ## Tahap 5: Evaluasi LLM kecil (opsional)
 

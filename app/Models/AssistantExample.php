@@ -31,8 +31,9 @@ class AssistantExample extends Model
      * Tidak ada cron di Vercel, jadi contoh lama dibuang di sini.
      *
      * @param  array<string, mixed>  $result  keluaran VoiceAssistant::handle()
+     * @param  array<string, mixed>|null  $local  jawaban mesin lokal untuk ucapan yang sama
      */
-    public static function capture(User $user, string $text, ?int $defaultAccountId, ?string $model, array $result): ?int
+    public static function capture(User $user, string $text, ?int $defaultAccountId, ?string $model, array $result, ?array $local = null): ?int
     {
         try {
             static::where('user_id', $user->id)->where('created_at', '<', now()->subDays(self::KEEP_DAYS))->delete();
@@ -46,6 +47,10 @@ class AssistantExample extends Model
                     ...self::fields($result['items'] ?? [], $result['account_actions'] ?? []),
                     'answered' => filled($result['reply'] ?? null),
                     'unclear' => $result['unclear'] ?? null,
+                    'local' => $local === null ? null : [
+                        'items' => self::fields($local['items'] ?? [], [])['items'],
+                        'answered' => filled($local['reply'] ?? null),
+                    ],
                 ],
             ])->id;
         } catch (Throwable $e) {

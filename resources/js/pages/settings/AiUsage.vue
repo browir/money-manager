@@ -55,6 +55,18 @@ const maxDay = computed(() => Math.max(1, ...props.days.map((d) => d.requests)))
 const dayName = (iso) => new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(new Date(`${iso}T12:00:00`));
 const clock = (iso) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 
+const accuracy = computed(() => props.examples?.accuracy ?? {});
+const accuracyRows = computed(() => [
+    { label: 'Nominal benar', value: accuracy.value.amount_right },
+    { label: 'Nominal salah', value: accuracy.value.amount_wrong, danger: true },
+    { label: 'Nominal dikosongkan', value: accuracy.value.amount_blank },
+    { label: 'Jenis', value: accuracy.value.type },
+    { label: 'Akun', value: accuracy.value.account },
+    { label: 'Kategori', value: accuracy.value.category },
+    { label: 'Tanggal', value: accuracy.value.date },
+    { label: 'Jumlah transaksi per ucapan', value: accuracy.value.item_count },
+]);
+
 /* Hapus bahan belajar: dua ketukan, karena tidak bisa dikembalikan. */
 const confirmClear = ref(false);
 const clearing = ref(false);
@@ -201,6 +213,22 @@ function clearExamples() {
                 Belum dipakai untuk menjawab.
             </p>
             <p class="mt-3 text-[14px] tnum">{{ num(examples.total) }} contoh · {{ num(examples.applied) }} sudah kamu simpan</p>
+
+            <h3 class="mt-4 text-[14px] font-medium">Akurasi mesin cadangan</h3>
+            <p v-if="!accuracy.examples" class="mt-1 text-small text-muted">Angka muncul setelah kamu menyimpan usulan LAX.</p>
+            <template v-else>
+                <p class="mt-1 text-small text-muted">
+                    Dibandingkan dengan {{ num(accuracy.items) }} transaksi yang kamu simpan.
+                    <template v-if="accuracy.examples < 30">Contohnya masih sedikit, jadi belum bisa dijadikan patokan.</template>
+                </p>
+                <ul class="mt-2 divide-y divide-line">
+                    <li v-for="row in accuracyRows" :key="row.label" class="flex items-center justify-between py-2 text-[14px]">
+                        <span>{{ row.label }}</span>
+                        <span class="tnum" :class="row.danger && row.value > 0 && 'font-medium text-neg'">{{ row.value }}%</span>
+                    </li>
+                </ul>
+            </template>
+
             <button
                 v-if="examples.total"
                 type="button"

@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 /**
  * Asisten suara: ucapan bebas -> usulan transaksi, usulan perubahan akun/saldo, dan/atau
@@ -47,6 +48,9 @@ class VoiceAssistant
 
     /** Model yang menjawab permintaan terakhir, dicatat di contoh latih. */
     public ?string $lastModel = null;
+
+    /** Jawaban mesin lokal untuk ucapan yang sama, hanya untuk diukur dan tidak dikirim ke klien. */
+    public ?array $lastLocal = null;
 
     private const SYSTEM = <<<'TXT'
         Kamu adalah LAX (Ledger Assistant eXtraordinaire), asisten pribadi di aplikasi buku kas
@@ -153,6 +157,13 @@ class VoiceAssistant
             .$this->context($accounts, $categories, $today, $period, $totals);
         $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
 
+        // Uji diam-diam: berjalan saat AI berhasil, supaya ada pembanding bagi hasil akhir pengguna.
+        try {
+            $this->lastLocal = $this->parseLocally($user, $text, $accounts, $categories, $totals, $today, $defaultAccountId);
+        } catch (Throwable $e) {
+            Log::warning('Mesin lokal gagal', ['exception' => $e::class]);
+        }
+
         return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
     }
 
@@ -163,7 +174,13 @@ class VoiceAssistant
     public function handleLocal(User $user, string $text, ?int $defaultAccountId = null): array
     {
         [$accounts, $categories, , $totals, $today] = $this->snapshot($user);
-        $result = (new LocalParser)->parse($text, $accounts, $categories, $today, $totals, LocalParser::training($user));
+
+        return $this->parseLocally($user, $text, $accounts, $categories, $totals, $today, $defaultAccountId);
+    }
+
+    private function parseLocally(User $user, string $text, Collection $accounts, Collection $categories, ?object $totals, CarbonImmutable $today, ?int $defaultAccountId): array
+    {
+        $result = app(LocalParser::class)->parse($text, $accounts, $categories, $today, $totals, LocalParser::training($user));
 
         return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
     }
