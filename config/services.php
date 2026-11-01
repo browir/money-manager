@@ -37,9 +37,10 @@ return [
         'models' => array_values(array_filter(array_map('trim', explode(',',
             env('GEMINI_MODELS') ?: 'gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash-lite'
         )))),
-        // Suara LAX (text-to-speech). Dicoba berurutan bila tidak tersedia / kuota habis.
+        // Suara LAX (text-to-speech): SEMUA model suara dipakai bergantian (kuota dihitung per model).
+        // Format "model:SuaraBawaan" — suara bawaan dipakai bila suara pilihan tidak ada di model itu.
         'tts_models' => array_values(array_filter(array_map('trim', explode(',',
-            env('GEMINI_TTS_MODELS') ?: 'gemini-2.5-flash-preview-tts,gemini-2.5-pro-preview-tts'
+            env('GEMINI_TTS_MODELS') ?: 'gemini-3.8-flash-tts:Fola,gemini-3.8-flash-lite-tts:Fola,gemini-3.1-flash-tts-preview:Sulafat,gemini-2.5-flash-preview-tts:Sulafat,gemini-2.5-pro-preview-tts:Sulafat'
         )))),
     ],
 

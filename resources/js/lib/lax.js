@@ -1,35 +1,22 @@
 import { ref } from 'vue';
+import { ACK, DONE_OPENERS, GREETINGS, PROPOSAL, WAKE, forSpeech, honorifics } from './laxPhrases';
 
 /**
  * Identitas asisten suara Sisih: LAX — Ledger Assistant eXtraordinaire.
- * Nama, sapaan & kepribadian di sini; prompt server ada di app/Support/VoiceAssistant.php.
+ * Nama & kepribadian di sini; kalimat tetap di laxPhrases.js (dipakai juga paket suara);
+ * prompt server ada di app/Support/VoiceAssistant.php.
  * LAX memanggil pengguna "Tuan", "Tuan <panggilan>", atau "Tuan Muda" (permintaan pemilik).
- * Semua kalimat yang diucapkan TIDAK boleh berisi nominal.
+ * Kalimat yang diucapkan tidak berisi nominal, kecuali pengguna memintanya.
  */
 export const LAX = {
     name: 'LAX',
     full: 'Ledger Assistant eXtraordinaire',
     motto: 'Lincah, Akurat, eXtra peduli',
-    // Cara mengucapkan nama: huruf kapital "LAX" dieja L-A-X oleh mesin suara, jadi tulis bunyinya.
-    spoken: 'Laks',
 };
 
-/**
- * Siapkan teks untuk dibacakan: "LAX" diucapkan sebagai satu kata (bukan dieja), dan nominal
- * "Rp 25.000" dibaca wajar "25.000 rupiah" (hanya muncul bila pengguna meminta nominal diucapkan).
- */
-export function forSpeech(text) {
-    // Angka format Indonesia (titik ribuan, koma desimal) tanpa ikut menelan tanda baca kalimat.
-    const amount = String.raw`(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)`;
-    text = text
-        .replace(new RegExp(String.raw`[-−]\s?Rp\s?` + amount, 'g'), 'minus $1 rupiah')
-        .replace(new RegExp(String.raw`Rp\s?` + amount, 'g'), '$1 rupiah');
-    return text.replace(/\bLAX\b/gi, LAX.spoken);
-}
+export { forSpeech };
 
 export const pick = (list) => list[Math.floor(Math.random() * list.length)];
-
-const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /* ---- Nama panggilan (per perangkat; kosong = ditebak dari nama akun) ---- */
 const NICK_KEY = 'sisih:lax-nick';
@@ -62,40 +49,27 @@ export function callName(fullName) {
     return laxNick.value || guessNick(fullName);
 }
 
-/** Sapaan hormat yang bervariasi: "Tuan", "Tuan Wira", "Tuan Muda". */
+/** Sapaan hormat yang bervariasi: "Tuan", "Tuan Wira" (lebih sering), "Tuan Muda". */
 export function honorific(nick) {
-    return pick(nick ? ['Tuan', `Tuan ${nick}`, `Tuan ${nick}`, 'Tuan Muda'] : ['Tuan', 'Tuan Muda']);
+    const list = honorifics(nick);
+    return pick(nick ? [...list, list[1]] : list);
 }
 
 /** Sapaan pembuka sesuai waktu. */
 export function greeting(nick) {
-    const t = honorific(nick);
     const h = new Date().getHours();
-    if (h < 11) return pick([`Selamat pagi, ${t}. LAX siap membantu hari ini.`, `Pagi, ${t}! Mari mulai hari dengan rapi.`]);
-    if (h < 15) return pick([`Selamat siang, ${t}. Ada yang perlu LAX catat?`, `Siang, ${t}! Habis jajan siang? Sebutkan saja, LAX catat.`]);
-    if (h < 19) return pick([`Selamat sore, ${t}. Mau catat sesuatu atau cek keuangan?`, `Sore, ${t}! LAX siap mendengarkan.`]);
-    return pick([`Selamat malam, ${t}. Mari tutup hari dengan mencatat transaksi.`, `Malam, ${t}. Ada yang terlewat dicatat hari ini?`]);
+    const slot = h < 11 ? 'pagi' : h < 15 ? 'siang' : h < 19 ? 'sore' : 'malam';
+    return pick(GREETINGS[slot])(honorific(nick));
 }
 
 /** Jawaban saat dipanggil "Hei LAX" (setelah sapaan pertama sesi ini). */
-export function wakeLine(nick) {
-    const t = honorific(nick);
-    return pick([`Ya, ${t}? LAX di sini.`, `Siap, ${t}. Ada yang bisa LAX bantu?`, `Untuk Anda, ${t}, LAX selalu siap.`, `Silakan, ${t}.`]);
-}
+export const wakeLine = (nick) => pick(WAKE)(honorific(nick));
+export const proposalLine = (nick) => pick(PROPOSAL)(honorific(nick));
+/** Pembuka singkat saat menjawab pertanyaan. */
+export const ackLine = (nick) => pick(ACK)(honorific(nick));
 
-export function proposalLine(nick) {
-    const t = honorific(nick);
-    return pick([`LAX sudah siapkan, ${t}. Mohon dicek dulu sebelum dijalankan.`, `Ini usulan LAX, ${t}. Silakan periksa, lalu tekan jalankan.`]);
-}
-
-/** Pembuka singkat saat menjawab pertanyaan (jawaban berangka hanya tampil di layar, tidak diucapkan). */
-export function ackLine(nick) {
-    const t = honorific(nick);
-    return pick([`Baik, ${t}.`, `Tentu, ${t}.`, `Siap, ${t}.`]);
-}
-
-/** Konfirmasi setelah perubahan dijalankan, mis. "Beres, Tuan Wira! Pengeluaran sudah dicatat dan saldo Tunai sudah disesuaikan." */
-export function doneLine(parts, nick) {
-    const sentence = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} dan ${parts.at(-1)}` : parts[0];
-    return `${pick(['Beres', 'Siap', 'Laksanakan', 'Sudah beres'])}, ${honorific(nick)}! ${capitalize(sentence)}.`;
-}
+/**
+ * Konfirmasi setelah perubahan dijalankan, sebagai potongan terpisah agar tiap potongan bisa
+ * diputar dari paket suara: ["Beres, Tuan Wira!", "Pengeluaran sudah dicatat.", "Saldo sudah disesuaikan."]
+ */
+export const doneLine = (sentences, nick) => [pick(DONE_OPENERS)(honorific(nick)), ...sentences];

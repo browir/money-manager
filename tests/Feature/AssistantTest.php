@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Account;
 use App\Models\User;
+use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -324,5 +325,18 @@ class AssistantTest extends TestCase
 
         $this->postJson(route('assistant.speak'), ['text' => 'Halo, Tuan.'])
             ->assertStatus(429)->assertJsonPath('message', 'Kuota suara Gemini hari ini habis.');
+    }
+
+    public function test_suara_gemini_3x_wav_utuh_dan_gaya_lewat_metadata(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji', 'services.gemini.tts_models' => ['tts-3x:Fola']]);
+        $wav = LaxVoice::wav(str_repeat("\x01\x00", 100), 24000);
+        Http::fake(['*' => Http::response(['candidates' => [['content' => ['parts' => [['inlineData' => ['mimeType' => 'audio/wav', 'data' => base64_encode($wav)]]]]]]])]);
+
+        $out = $this->actingAs($this->user)->post(route('assistant.speak'), ['text' => 'Siap, Tuan.'])->assertOk()->getContent();
+
+        $this->assertSame($wav, $out); // tidak dibungkus header kedua
+        Http::assertSent(fn (Request $r) => $r['contents'][0]['parts'][0]['text'] === 'Siap, Tuan.'
+            && isset($r['contents'][0]['parts'][0]['speechMetadata']['style']));
     }
 }

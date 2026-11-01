@@ -56,7 +56,8 @@ router.on('networkError', (event) => {
 router.on('navigate', (event) => {
     if (event.detail.page.component.startsWith('auth/') && 'caches' in window) {
         caches.delete('sisih-data-v1');
-        caches.delete('lax-voice-v1'); // audio suara LAX (useSpeech VOICE_CACHE)
+        caches.delete('lax-voice-v1');
+        caches.delete('lax-voice-v2'); // audio suara LAX (useSpeech VOICE_CACHE)
         caches.open('sisih-pages-v1').then(async (cache) => {
             for (const req of await cache.keys()) if (!req.url.endsWith('/offline.html')) cache.delete(req);
         });

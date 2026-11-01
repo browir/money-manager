@@ -118,8 +118,12 @@ function pick(voiceURI) {
 
             <!-- Suara Gemini: pilih karakter -->
             <div v-if="usesCloud">
-                <span class="field-label">Karakter suara (perempuan)</span>
-                <div class="grid grid-cols-2 gap-2">
+                <span class="field-label">Karakter suara</span>
+                <span class="-mt-1 mb-2 block text-small text-muted">
+                    Semua model suara Gemini dipakai bergantian; bila kuota satu model habis, LAX pindah ke model lain
+                    (suaranya bisa sedikit berbeda).
+                </span>
+                <div class="grid max-h-80 grid-cols-2 gap-2 overflow-y-auto pr-1">
                     <button
                         v-for="name in cloudVoices"
                         :key="name"

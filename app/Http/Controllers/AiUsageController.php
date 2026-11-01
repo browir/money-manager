@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AiUsage;
+use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -37,12 +38,12 @@ class AiUsageController extends Controller
 
         // Hari ini, per model (model yang dikonfigurasi selalu tampil walau belum dipakai).
         $configured = $assistant->provider() === 'gemini' || filled(config('services.gemini.key'))
-            ? [...config('services.gemini.models'), ...config('services.gemini.tts_models')]
+            ? [...config('services.gemini.models'), ...array_column(LaxVoice::models(), 'model')]
             : [];
         $todayRows = $rows->filter(fn ($u) => $day($u) === $today);
         $models = collect([...$configured, ...$todayRows->pluck('model')])->unique()->values()->map(fn ($model) => [
             'model' => $model,
-            'feature' => in_array($model, config('services.gemini.tts_models'), true) ? 'voice' : 'assistant',
+            'feature' => in_array($model, array_column(LaxVoice::models(), 'model'), true) ? 'voice' : 'assistant',
             'requests' => $todayRows->where('model', $model)->where('status', '!=', 'rate_limited')->count(),
             'limited' => $todayRows->where('model', $model)->where('status', 'rate_limited')->count(),
             'tokens' => (int) $todayRows->where('model', $model)->sum('total_tokens'),

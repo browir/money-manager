@@ -21,6 +21,7 @@ import { pauseWakeWord, resumeWakeWord } from '@/composables/useWakeWord';
 import { dayLabel } from '@/lib/dates';
 import { postJson } from '@/lib/http';
 import { ACCOUNT_TYPES, accountIcon, categoryIcon } from '@/lib/icons';
+import { DONE } from '@/lib/laxPhrases';
 import { LAX, ackLine, callName, doneLine, greeting, proposalLine, wakeLine } from '@/lib/lax';
 
 /* ---------------------------------------------------------------
@@ -238,11 +239,12 @@ async function process() {
     unclear.value = body.unclear ?? '';
     if (hasProposals.value || reply.value) {
         phase.value = 'review';
-        // Nominal tidak pernah dibacakan: jawaban berangka cukup tampil di layar.
+        // Nominal hanya dibacakan bila diminta. Semangat dari AI boleh dilewati bila suara natural
+        // tidak tersedia (kalimat tetap diputar dari paket suara, tanpa mencampur suara HP).
         speak(
             hasProposals.value
                 ? proposalLine(nick.value)
-                : joinSpeech([ackLine(nick.value), speakAmounts.value ? reply.value : '', encouragement.value]),
+                : [ackLine(nick.value), speakAmounts.value ? reply.value : '', { text: encouragement.value, optional: true }],
         );
     } else {
         phase.value = 'input';
@@ -251,28 +253,26 @@ async function process() {
     navigator.vibrate?.(10);
 }
 
-/* ---- Kalimat konfirmasi yang diucapkan (tanpa nominal) ---- */
-const joinSpeech = (parts) => parts.filter(Boolean).join(' ');
-
+/* ---- Kalimat konfirmasi yang diucapkan ----
+   Dirakit dari kalimat umum (laxPhrases DONE) agar bisa diputar dari paket suara; nominal hanya
+   bila pengguna memintanya (kalimat dinamis itu butuh suara Gemini langsung / suara HP). */
 const rp = (n) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
+const KIND = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer' };
 
 function confirmation(items, accountActions) {
-    const kind = { expense: 'pengeluaran', income: 'pemasukan', transfer: 'transfer' };
-    const say = speakAmounts.value; // nominal hanya bila diminta
-    const parts = [];
-    if (items.length === 1) parts.push(`${kind[items[0].type]}${say ? ` ${rp(items[0].amount)}` : ''} sudah dicatat`);
-    else if (items.length > 1) parts.push(`${items.length} transaksi sudah dicatat`);
-    for (const a of accountActions) {
-        const name = a.account_name ?? accountById.value[a.account_id]?.name ?? 'akun';
-        parts.push({
-            create: `akun ${a.name} sudah dibuat`,
-            rename: `nama akun sudah diganti jadi ${a.name}`,
-            adjust_balance: `saldo ${name} sudah disesuaikan${say && a.amount != null ? ` menjadi ${rp(a.amount)}` : ''}`,
-            archive: `akun ${name} sudah diarsipkan`,
-            unarchive: `akun ${name} sudah aktif lagi`,
-        }[a.action]);
+    const say = speakAmounts.value;
+    const sentences = [];
+    if (items.length === 1) sentences.push(say ? `${KIND[items[0].type]} ${rp(items[0].amount)} sudah dicatat.` : DONE[items[0].type]);
+    else if (items.length > 1) sentences.push(DONE.many(items.length));
+    for (const action of new Set(accountActions.map((a) => a.action))) {
+        const a = accountActions.find((x) => x.action === action);
+        sentences.push(
+            action === 'adjust_balance' && say && accountActions.filter((x) => x.action === action).length === 1 && a.amount != null
+                ? `Saldo ${a.account_name ?? accountById.value[a.account_id]?.name ?? ''} sekarang ${rp(a.amount)}.`
+                : DONE[action],
+        );
     }
-    return doneLine(parts, nick.value);
+    return doneLine(sentences, nick.value);
 }
 
 /* Keadaan orb LAX. */
@@ -382,7 +382,7 @@ function save() {
         action, account_id, name, type, amount, note,
     }));
     const single = items.length === 1 && !accountActions.length ? view(drafts.value[0]) : null;
-    const spoken = joinSpeech([confirmation(items, actions.value), encouragement.value]);
+    const spoken = [...confirmation(items, actions.value), { text: encouragement.value, optional: true }];
     primeSpeech();
     const before = snapshotBudgets(categories.value);
     saving.value = true;

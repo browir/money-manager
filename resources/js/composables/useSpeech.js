@@ -3,6 +3,7 @@ import { route } from 'ziggy-js';
 import { pushToast } from '@/composables/useToast';
 import { postJson } from '@/lib/http';
 import { forSpeech } from '@/lib/lax';
+import { SAMPLE } from '@/lib/laxPhrases'; // sama dengan isi paket suara
 
 /**
  * Suara LAX. Dua sumber:
@@ -17,7 +18,6 @@ const KEY = 'sisih:speak';
 const SETTINGS_KEY = 'sisih:voice';
 const supported = typeof window !== 'undefined' && ('speechSynthesis' in window || 'Audio' in window);
 const deviceSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-const SAMPLE = 'Halo, Tuan. Saya LAX, asisten pribadi Anda. Semangat mencatat keuangan hari ini, ya!'; // "LAX" diucapkan lewat forSpeech()
 // WAV hening sangat pendek: memutarnya saat ketukan "membuka kunci" pemutar audio di iOS.
 const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 
@@ -43,7 +43,7 @@ const caption = ref('');
 const loading = ref(false); // menunggu audio Gemini
 const settings = reactive({
     source: 'gemini',
-    cloudVoice: 'Sulafat',
+    cloudVoice: 'Fola',
     voiceURI: null,
     rate: 1,
     pitch: 1,
@@ -114,7 +114,8 @@ let safety = null;
 const cache = new Map(); // "suara|teks" -> object URL audio Gemini (kalimat sapaan sering berulang)
 // Simpanan permanen di perangkat (Cache Storage): sapaan & konfirmasi yang sama tidak memakai
 // kuota Gemini lagi, termasuk setelah aplikasi ditutup. Dihapus saat keluar (app.js).
-export const VOICE_CACHE = 'lax-voice-v1';
+export const VOICE_CACHE = 'lax-voice-v2'; // v1 bisa berisi arahan gaya yang ikut terbaca
+if (typeof caches !== 'undefined') caches.delete('lax-voice-v1').catch(() => {});
 const cacheKey = (voice, text) => `/__lax-voice/${encodeURIComponent(voice)}?t=${encodeURIComponent(text)}`;
 
 async function stored(voice, text) {
@@ -141,7 +142,7 @@ let warned = false;
 function warnFallback(message) {
     if (warned) return;
     warned = true;
-    pushToast({ message: `${message} Sementara LAX memakai suara HP.`, tone: 'warn' });
+    pushToast({ message: `${message} Sementara LAX memakai suara cadangan.`, tone: 'warn' });
 }
 
 function player() {
@@ -160,7 +161,7 @@ export function primeSpeech() {
         silent.volume = 0;
         window.speechSynthesis.speak(silent);
     }
-    if (usesCloud.value) {
+    if (settings.source === 'gemini') {
         const a = player();
         a.src = SILENT;
         a.play().catch(() => {});
@@ -199,77 +200,151 @@ function speakDevice(text, id, onEnd) {
     synth.speak(utterance);
 }
 
-async function speakCloud(text, id, onEnd) {
-    const voice = settings.cloudVoice;
+/* ---- Paket suara: kalimat tetap LAX yang sudah dibuat sebelumnya (public/voice/<suara>/) ----
+   Diputar tanpa kuota & tanpa kunci API. Dibuat dengan scripts/lax-paket-suara.mjs. */
+const packs = new Map(); // suara -> Promise<Map(teks -> url)>
+function pack(voice) {
+    if (!packs.has(voice)) {
+        packs.set(
+            voice,
+            fetch(`/voice/${encodeURIComponent(voice)}/manifest.json`)
+                .then((r) => (r.ok ? r.json() : { phrases: {} }))
+                .then((m) => new Map(Object.entries(m.phrases ?? {}).map(([text, file]) => [text, `/voice/${encodeURIComponent(voice)}/${file}`])))
+                .catch(() => new Map()),
+        );
+    }
+    return packs.get(voice);
+}
+
+// Paket cadangan (public/voice/index.json, "backup": true, mis. Gadis dari Edge TTS): dipakai bila
+// suara utama tidak tersedia, sebelum jatuh ke suara HP.
+let backupId = null;
+const packIndex =
+    typeof window === 'undefined'
+        ? Promise.resolve()
+        : fetch('/voice/index.json')
+              .then((r) => (r.ok ? r.json() : { packs: [] }))
+              .then((index) => (backupId = index.packs?.find((p) => p.backup)?.id ?? null))
+              .catch(() => null);
+
+// Setelah kuota Gemini habis, jangan bertanya ulang tiap kalimat selama beberapa menit.
+let cloudPausedUntil = 0;
+
+/** URL audio natural untuk satu kalimat: paket → simpanan → Gemini. null bila tidak tersedia. */
+async function naturalUrl(voice, text) {
+    const fromPack = (await pack(voice)).get(text);
+    if (fromPack) return fromPack;
+
     const key = `${voice}|${text}`;
-    let url = cache.get(key);
-    if (!url) {
-        loading.value = true;
+    if (cache.has(key)) return cache.get(key);
+    let blob = await stored(voice, text);
+    if (!blob) {
+        if (!cloudVoices.value?.includes(voice) || Date.now() < cloudPausedUntil) return null;
         try {
-            let blob = await stored(voice, text);
-            if (!blob) {
-                const response = await postJson(route('assistant.speak'), { text, voice });
-                if (!response.ok) {
-                    const body = await response.json().catch(() => ({}));
-                    warnFallback(
-                        response.status === 429
-                            ? body.message?.includes('Kuota')
-                                ? 'Kuota suara Gemini hari ini habis.'
-                                : 'Terlalu sering meminta suara.'
-                            : body.message || 'Suara Gemini sedang tidak tersedia.',
-                    );
-                    throw new Error(String(response.status));
-                }
-                blob = await response.blob();
-                store(voice, text, blob);
+            const response = await postJson(route('assistant.speak'), { text, voice });
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                if (response.status === 429) cloudPausedUntil = Date.now() + 10 * 60 * 1000;
+                warnFallback(
+                    response.status === 429
+                        ? body.message?.includes('Kuota')
+                            ? 'Kuota suara Gemini hari ini habis.'
+                            : 'Terlalu sering meminta suara.'
+                        : body.message || 'Suara Gemini sedang tidak tersedia.',
+                );
+                return null;
             }
-            url = URL.createObjectURL(blob);
-            cache.set(key, url);
-            if (cache.size > 40) {
-                const [oldKey, oldUrl] = cache.entries().next().value;
-                URL.revokeObjectURL(oldUrl);
-                cache.delete(oldKey);
-            }
+            blob = await response.blob();
+            store(voice, text, blob);
         } catch {
-            if (id === token) {
-                loading.value = false;
-                speakDevice(text, id, onEnd); // cadangan: suara perangkat
-            }
-            return;
+            return null;
         }
     }
-    if (id !== token) return;
+    const url = URL.createObjectURL(blob);
+    cache.set(key, url);
+    if (cache.size > 40) {
+        const [oldKey, oldUrl] = cache.entries().next().value;
+        URL.revokeObjectURL(oldUrl);
+        cache.delete(oldKey);
+    }
+    return url;
+}
+
+function playUrl(a, url) {
+    return new Promise((resolve, reject) => {
+        a.onended = resolve;
+        a.onerror = reject;
+        a.src = url;
+        a.playbackRate = settings.rate;
+        a.play().catch(reject);
+    });
+}
+
+/** Kumpulkan URL tiap potongan; null bila potongan wajib tidak tersedia, undefined bila dibatalkan. */
+async function collect(segments, get, id) {
+    const urls = [];
+    for (const seg of segments) {
+        const url = await get(seg.text);
+        if (id !== token) return undefined;
+        if (url) urls.push(url);
+        else if (!seg.optional) return null;
+    }
+    return urls;
+}
+
+/**
+ * Suara natural per potongan: suara utama (paket → simpanan → Gemini), lalu paket cadangan, lalu
+ * suara HP. Satu ucapan selalu memakai satu suara (tidak dicampur). Potongan opsional (mis. semangat
+ * dari AI) yang tidak tersedia di suara itu dilewati.
+ */
+async function speakNatural(segments, id, onEnd) {
+    const voice = settings.cloudVoice;
+    loading.value = true;
+    let urls = await collect(segments, (text) => naturalUrl(voice, text), id);
+    if (urls === null) {
+        await packIndex;
+        if (backupId && backupId !== voice) urls = await collect(segments, async (text) => (await pack(backupId)).get(text) ?? null, id);
+    }
+    if (urls === undefined) return;
     loading.value = false;
+    if (!urls) return speakDevice(segments.map((s) => s.text).join(' '), id, onEnd);
+    if (!urls.length) return finish(id, onEnd);
 
     const a = player();
-    a.src = url;
-    a.playbackRate = settings.rate;
     a.onplaying = () => {
         if (id !== token) return;
         speaking.value = true;
-        caption.value = text;
+        caption.value = segments.map((s) => s.text).join(' ');
     };
-    a.onended = () => finish(id, onEnd);
-    a.onerror = () => id === token && speakDevice(text, id, onEnd);
     try {
-        await a.play();
+        for (const url of urls) {
+            if (id !== token) return;
+            await playUrl(a, url);
+        }
+        finish(id, onEnd);
     } catch {
-        // Diblokir aturan autoplay (belum ada ketukan): pakai suara perangkat.
-        if (id === token) speakDevice(text, id, onEnd);
+        // Diblokir aturan autoplay (belum ada ketukan) atau audio rusak: pakai suara perangkat.
+        if (id === token) speakDevice(segments.map((s) => s.text).join(' '), id, onEnd);
     }
 }
 
-/** onEnd dipanggil setelah selesai bicara, atau langsung bila suara mati (mis. lanjut mendengarkan). */
-export function speak(text, { force = false, onEnd = null } = {}) {
-    if (!supported || (!enabled.value && !force) || !text) {
+/**
+ * Ucapkan teks atau daftar potongan: 'Halo' atau ['Beres, Tuan!', 'Saldo sudah disesuaikan.',
+ * { text: semangat, optional: true }]. onEnd dipanggil setelah selesai, atau langsung bila suara mati.
+ */
+export function speak(input, { force = false, onEnd = null } = {}) {
+    const segments = (Array.isArray(input) ? input : [input])
+        .map((s) => (typeof s === 'string' ? { text: s } : s))
+        .filter((s) => s?.text?.trim())
+        .map((s) => ({ ...s, text: forSpeech(s.text.trim()) }));
+    if (!supported || (!enabled.value && !force) || !segments.length) {
         onEnd?.();
         return;
     }
-    text = forSpeech(text);
     stopSpeaking();
     const id = ++token;
-    if (usesCloud.value) speakCloud(text, id, onEnd);
-    else speakDevice(text, id, onEnd);
+    if (settings.source === 'gemini') speakNatural(segments, id, onEnd);
+    else speakDevice(segments.map((s) => s.text).join(' '), id, onEnd);
 }
 
 /** Contoh suara di pengaturan (tetap berbunyi walau suara LAX dimatikan). */

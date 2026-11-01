@@ -1,0 +1,9 @@
+{
+  "packs": [
+    {
+      "id": "Gadis",
+      "engine": "edge",
+      "backup": true
+    }
+  ]
+}
