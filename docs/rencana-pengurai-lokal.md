@@ -1,6 +1,6 @@
 # Rencana: Pengurai Lokal LAX (cadangan saat kuota Gemini habis)
 
-Status: Tahap 1 dikerjakan, Tahap 2–5 belum · disusun 1 Nov 2026
+Status: Tahap 1–2 dikerjakan, Tahap 3–5 belum · disusun 1 Nov 2026
 
 Tujuan: selama kuota ada, Gemini yang menjawab sambil data latih terkumpul. Saat semua model Gemini gagal, LAX tetap bisa mencatat transaksi lewat mesin lokal yang belajar dari data itu.
 
@@ -48,12 +48,16 @@ Ucapan → Gemini (semua model) → berhasil → usulan → tinjau → simpan
 
 Selisih `proposal` dan `final` adalah koreksi pengguna, yaitu label paling berharga untuk Tahap 2 dan 3.
 
-## Tahap 2: Mesin lokal
+## Tahap 2: Mesin lokal (dikerjakan)
 
-- Kelas baru (usulan `App\Support\LocalParser`) dengan keluaran mentah sebentuk jawaban AI, supaya bisa lewat `sanitize()` yang sama.
-- Nominal, jenis, tanggal, dan akun dengan aturan. Kategori dengan pengklasifikasi sederhana (Naive Bayes) atas `note` riwayat transaksi dan `final` contoh latih, jadi sudah berguna sejak hari pertama.
-- Pertanyaan saldo dan total memakai templat dari data yang sama dengan konteks AI.
+- `App\Support\LocalParser`, dengan keluaran mentah sebentuk jawaban AI, supaya lewat `sanitize()` yang sama. Dipanggil lewat `VoiceAssistant::handleLocal()`, yang **belum dipakai rute mana pun**.
+- Nominal, jenis, tanggal, dan akun dengan aturan. Kategori dari nama yang disebut, lalu Naive Bayes atas `note` riwayat transaksi dan ucapan yang sudah dikonfirmasi.
+- Pertanyaan saldo, pengeluaran, pemasukan, dan anggaran periode berjalan memakai templat dari data yang sama dengan konteks AI.
 - Berjalan di PHP pada server, tanpa layanan tambahan.
+
+Nominal sengaja dikosongkan, dan LAX bertanya, bila: nominal bisa dibaca dua cara (`1 juta 500`), ada harga satuan (`2 kopi masing-masing 10 ribu`), ada kembalian atau diskon, atau nominal kedua tanpa nama barang. Perubahan akun dan saldo (`saldo BCA sekarang 2 juta`) tidak dicatat sebagai transaksi, melainkan diarahkan ke menu Akun.
+
+Batasan yang diketahui: `nabung` dan `masuk angin` bisa salah jenis, karena hanya dibaca dari kata kunci. Akurasinya belum terukur dengan ucapan asli; itu tugas Tahap 3.
 
 ## Tahap 3: Uji diam-diam
 

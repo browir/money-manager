@@ -146,6 +146,31 @@ class VoiceAssistant
      */
     public function handle(User $user, string $text, ?int $defaultAccountId = null, ?string $callName = null): array
     {
+        [$accounts, $categories, $period, $totals, $today] = $this->snapshot($user);
+
+        $context = 'Nama panggilan pengguna: '.(trim((string) $callName) ?: self::callName($user->name))
+            .' (sapa dengan "Tuan", "Tuan <nama panggilan>", atau "Tuan Muda")'."\n"
+            .$this->context($accounts, $categories, $today, $period, $totals);
+        $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
+
+        return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
+    }
+
+    /**
+     * Seperti handle(), tetapi diurai mesin lokal tanpa AI. Belum dipakai rute mana pun:
+     * akurasinya diukur dulu (Tahap 3 di docs/rencana-pengurai-lokal.md).
+     */
+    public function handleLocal(User $user, string $text, ?int $defaultAccountId = null): array
+    {
+        [$accounts, $categories, , $totals, $today] = $this->snapshot($user);
+        $result = (new LocalParser)->parse($text, $accounts, $categories, $today, $totals, LocalParser::training($user));
+
+        return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
+    }
+
+    /** Data pengguna yang dibutuhkan untuk mengurai ucapan. */
+    private function snapshot(User $user): array
+    {
         $accounts = $user->accounts()->withBalance()->orderBy('sort')->orderBy('id')->get();
         $period = $user->period();
         $categories = $user->categories()
@@ -158,14 +183,8 @@ class VoiceAssistant
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0) AS income")
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) AS expense")
             ->toBase()->first();
-        $today = CarbonImmutable::today();
 
-        $context = 'Nama panggilan pengguna: '.(trim((string) $callName) ?: self::callName($user->name))
-            .' (sapa dengan "Tuan", "Tuan <nama panggilan>", atau "Tuan Muda")'."\n"
-            .$this->context($accounts, $categories, $today, $period, $totals);
-        $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
-
-        return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
+        return [$accounts, $categories, $period, $totals, CarbonImmutable::today()];
     }
 
     private function context(Collection $accounts, Collection $categories, CarbonImmutable $today, Period $period, ?object $totals): string
