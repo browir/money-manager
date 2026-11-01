@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AiUsageController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\CategoryController;
@@ -51,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/asisten/ucap', [AssistantController::class, 'speak'])->middleware('throttle:40,1')->name('assistant.speak');
 
     Route::get('/pengaturan', [SettingsController::class, 'edit'])->name('settings');
+    Route::get('/pengaturan/ai', AiUsageController::class)->name('settings.ai');
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');
     Route::put('/pengaturan/periode', [SettingsController::class, 'updatePeriod'])->name('settings.period');
     Route::put('/pengaturan/sandi', [SettingsController::class, 'updatePassword'])->name('settings.password');

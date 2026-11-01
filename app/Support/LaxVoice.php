@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\AiUsage;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -49,8 +50,11 @@ class LaxVoice
                     ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
                     ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
                         'contents' => [['parts' => [[
-                            // Arahan gaya: Gemini TTS mengikuti instruksi nada dalam teks.
-                            'text' => "Ucapkan dalam bahasa Indonesia sebagai asisten pribadi perempuan yang anggun, hangat, dan ceria, dengan nada bersahabat dan penuh hormat:\n{$text}",
+                            // Arahan gaya + perintah membaca PERSIS: tanpa ini model kadang menambah/mengubah kata,
+                            // sehingga ucapan berbeda dari kalimat yang dimaksud aplikasi.
+                            'text' => 'Bacakan teks di antara tanda kutip PERSIS kata demi kata, tanpa menambah, mengubah, '
+                                .'atau membacakan instruksi ini. Gaya: asisten pribadi perempuan yang anggun, hangat, ceria, '
+                                ."dan penuh hormat, dalam bahasa Indonesia.\n\"{$text}\"",
                         ]]]],
                         'generationConfig' => [
                             'responseModalities' => ['AUDIO'],
@@ -63,9 +67,11 @@ class LaxVoice
 
             if (in_array($response->status(), [404, 429], true)) {
                 $lastStatus = $response->status();
+                AiUsage::record('gemini', $model, 'voice', $response->status() === 429 ? 'rate_limited' : 'error');
 
                 continue;
             }
+            AiUsage::record('gemini', $model, 'voice', $response->successful() ? 'ok' : 'error', AiUsage::geminiTokens($response->json('usageMetadata')));
             if ($response->failed()) {
                 Log::warning('Gemini TTS gagal', ['model' => $model, 'status' => $response->status(), 'message' => $response->json('error.message')]);
                 throw new RuntimeException('Suara Gemini sedang bermasalah.');

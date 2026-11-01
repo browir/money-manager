@@ -9,6 +9,7 @@ use Anthropic\Core\Exceptions\AuthenticationException;
 use Anthropic\Core\Exceptions\PermissionDeniedException;
 use Anthropic\Core\Exceptions\RateLimitException;
 use App\Models\Account;
+use App\Models\AiUsage;
 use App\Models\Transaction;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -101,6 +102,12 @@ class VoiceAssistant
            apa pun. Jangan mengulang isi transaksinya. Contoh: "Mantap, kamu konsisten mencatat!
            Jajan kopi mulai sering nih, mungkin bisa bawa bekal minggu ini."
 
+        5) speak_amounts: true HANYA bila pengguna secara eksplisit meminta nominal/angka
+           DIUCAPKAN atau DIBACAKAN (mis. "sebutkan saldoku", "bacakan totalnya", "kasih tahu
+           nominalnya", "ucapkan berapa sisanya"). Pertanyaan biasa seperti "berapa saldo BCA?"
+           tanpa permintaan untuk diucapkan = false. Bila true, reply boleh berisi nominal karena
+           reply akan dibacakan; encouragement tetap tanpa angka.
+
         unclear: bila ada bagian ucapan yang tidak bisa dikenali atau ambigu, jelaskan singkat
         dalam bahasa Indonesia; selain itu null.
         TXT;
@@ -150,7 +157,7 @@ class VoiceAssistant
             .$this->context($accounts, $categories, $today, $period, $totals);
         $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
 
-        return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId);
+        return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId, $text);
     }
 
     private function context(Collection $accounts, Collection $categories, CarbonImmutable $today, Period $period, ?object $totals): string
@@ -228,9 +235,12 @@ class VoiceAssistant
 
             if (in_array($response->status(), [404, 429], true)) {
                 $lastStatus = $response->status();
+                AiUsage::record('gemini', $model, 'assistant', $response->status() === 429 ? 'rate_limited' : 'error');
 
                 continue;
             }
+
+            AiUsage::record('gemini', $model, 'assistant', $response->successful() ? 'ok' : 'error', AiUsage::geminiTokens($response->json('usageMetadata')));
 
             if ($response->failed()) {
                 $reason = collect($response->json('error.details', []))->pluck('reason')->filter()->first();
@@ -291,11 +301,17 @@ class VoiceAssistant
 
         try {
             $message = $client->beta->messages->create(...$params);
+            AiUsage::record('claude', $model, 'assistant', 'ok', [
+                'prompt' => $message->usage->inputTokens + ($message->usage->cacheReadInputTokens ?? 0) + ($message->usage->cacheCreationInputTokens ?? 0),
+                'output' => $message->usage->outputTokens,
+            ]);
+        } catch (RateLimitException $e) {
+            AiUsage::record('claude', $model, 'assistant', 'rate_limited');
+            throw new RuntimeException('Terlalu banyak permintaan ke Claude. Coba lagi sebentar.');
         } catch (AuthenticationException|PermissionDeniedException) {
             throw new RuntimeException('Kunci API Claude tidak valid. Periksa ANTHROPIC_API_KEY di server.');
-        } catch (RateLimitException) {
-            throw new RuntimeException('Terlalu banyak permintaan ke Claude. Coba lagi sebentar.');
         } catch (APIStatusException $e) {
+            AiUsage::record('claude', $model, 'assistant', 'error');
             Log::warning('Claude API gagal', ['status' => $e->status, 'type' => $e->type?->value, 'message' => $e->getMessage()]);
             throw new RuntimeException($e->type?->value === 'billing_error'
                 ? 'Kredit API Claude habis. Isi saldo di console.anthropic.com.'
@@ -372,6 +388,7 @@ class VoiceAssistant
                 'note' => $scalar('string', true),
             ])),
             'encouragement' => $scalar('string', true),
+            'speak_amounts' => $scalar('boolean'),
             'unclear' => $scalar('string', true),
         ]);
     }
@@ -385,9 +402,9 @@ class VoiceAssistant
      * "issues" = harus diperbaiki sebelum dijalankan; "notes" = asumsi yang perlu diketahui.
      *
      * @param  Collection  $accounts  semua akun pengguna (termasuk arsip) dengan kolom balance
-     * @return array{reply: ?string, encouragement: ?string, unclear: ?string, items: list<array<string, mixed>>, account_actions: list<array<string, mixed>>}
+     * @return array{reply: ?string, encouragement: ?string, speak_amounts: bool, unclear: ?string, items: list<array<string, mixed>>, account_actions: list<array<string, mixed>>}
      */
-    public function sanitize(array $result, Collection $accounts, Collection $categories, CarbonImmutable $today, ?int $defaultAccountId = null): array
+    public function sanitize(array $result, Collection $accounts, Collection $categories, CarbonImmutable $today, ?int $defaultAccountId = null, string $text = ''): array
     {
         $unclear = array_filter([self::text($result['unclear'] ?? null, 300)]);
         $actions = $this->sanitizeAccountActions($result['account_actions'] ?? null, $accounts, $unclear);
@@ -396,6 +413,9 @@ class VoiceAssistant
         return [
             'reply' => self::text($result['reply'] ?? null, 600),
             'encouragement' => self::speakable($result['encouragement'] ?? null),
+            // Nominal boleh diucapkan hanya bila pengguna memintanya: model harus menandai DAN
+            // ucapannya memang berisi kata permintaan (jaga-jaga model salah menebak).
+            'speak_amounts' => ($result['speak_amounts'] ?? false) === true && self::asksToSpeakAmounts($text),
             'unclear' => $unclear ? implode(' ', $unclear) : null,
             'items' => $items,
             'account_actions' => $actions,
@@ -579,6 +599,12 @@ class VoiceAssistant
         }
 
         return $actions;
+    }
+
+    /** Apakah ucapan pengguna meminta angka diucapkan ("sebutkan", "bacakan", "kasih tahu", ...)? */
+    public static function asksToSpeakAmounts(string $text): bool
+    {
+        return (bool) preg_match('/\b(sebut\w*|baca\w*|ucap\w*|katakan|bilang\w*|kasih\s+tahu|kasi\s+tau|kasih\s+tau|beri\s*tahu|beritahu\w*|suarakan|keras(?:kan)?)\b/iu', $text);
     }
 
     /**

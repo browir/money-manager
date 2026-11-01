@@ -1,6 +1,6 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
-import { ChevronRight, EyeOff, Layers, LogOut, Mic, Repeat, Settings } from 'lucide-vue-next';
+import { ChevronRight, EyeOff, Gauge, Layers, LogOut, Mic, Repeat, Settings } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { route } from 'ziggy-js';
 import Segmented from '@/components/ui/Segmented.vue';
@@ -26,11 +26,12 @@ const initials = computed(() =>
         .toUpperCase(),
 );
 
-const links = [
+const links = computed(() => [
     { label: 'Kategori & anggaran', route: 'categories.index', icon: Layers },
     { label: 'Transaksi berulang', route: 'recurring.index', icon: Repeat },
+    ...(page.props.features?.voice ? [{ label: 'Pemakaian AI', route: 'settings.ai', icon: Gauge }] : []),
     { label: 'Pengaturan', route: 'settings', icon: Settings },
-];
+]);
 
 function voice() {
     open.value = false;

@@ -1,7 +1,7 @@
 <script setup>
 import { router, usePage } from '@inertiajs/vue3';
 import {
-    ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Home, Layers, List, Mic, Moon, Repeat, Search, Settings, Wallet,
+    ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Gauge, Home, Layers, List, Mic, Moon, Repeat, Search, Settings, Wallet,
 } from 'lucide-vue-next';
 import { computed, nextTick, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
@@ -27,6 +27,7 @@ const commands = [
     { group: 'Buka', label: 'Kategori', icon: Layers, run: go('categories.index') },
     { group: 'Buka', label: 'Transaksi berulang', icon: Repeat, run: go('recurring.index') },
     { group: 'Buka', label: 'Pengaturan', icon: Settings, run: go('settings') },
+    ...(usePage().props.features?.voice ? [{ group: 'Buka', label: 'Pemakaian AI (kuota Gemini)', icon: Gauge, run: go('settings.ai') }] : []),
     { group: 'Lainnya', label: 'Ganti tema terang/gelap', icon: Moon, run: toggleTheme },
 ];
 

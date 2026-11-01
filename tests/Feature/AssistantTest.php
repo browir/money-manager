@@ -294,4 +294,18 @@ class AssistantTest extends TestCase
         config(['services.gemini.key' => null]);
         $this->postJson(route('assistant.speak'), ['text' => 'Halo'])->assertStatus(503);
     }
+
+    public function test_nominal_hanya_diucapkan_bila_diminta(): void
+    {
+        $this->fakeAi(['reply' => 'Saldo BCA Rp 2.000.000.', 'speak_amounts' => true]);
+        // Model menandai true, tapi ucapan tidak meminta dibacakan -> tetap false.
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'berapa saldo BCA?'])
+            ->assertOk()->assertJsonPath('speak_amounts', false);
+        // Diminta eksplisit -> boleh.
+        $this->postJson(route('assistant.parse'), ['text' => 'tolong sebutkan saldo BCA'])->assertJsonPath('speak_amounts', true);
+        $this->postJson(route('assistant.parse'), ['text' => 'kasih tahu nominalnya dong'])->assertJsonPath('speak_amounts', true);
+
+        $this->fakeAi(['reply' => 'Saldo BCA Rp 2.000.000.', 'speak_amounts' => false]);
+        $this->postJson(route('assistant.parse'), ['text' => 'bacakan saldo BCA'])->assertJsonPath('speak_amounts', false);
+    }
 }

@@ -1,6 +1,8 @@
 <script setup>
 import { usePage } from '@inertiajs/vue3';
-import { Play } from 'lucide-vue-next';
+import { Link } from '@inertiajs/vue3';
+import { ChevronRight, Gauge, Play } from 'lucide-vue-next';
+import { route } from 'ziggy-js';
 import Segmented from '@/components/ui/Segmented.vue';
 import { previewVoice, saveVoiceSettings, toggleSpeech, useSpeech, voiceLabel } from '@/composables/useSpeech';
 import { guessNick, laxNick, setLaxNick } from '@/lib/lax';
@@ -72,6 +74,18 @@ function pick(voiceURI) {
                 “bip” saat LAX mulai mendengarkan ulang.
             </p>
         </div>
+
+        <Link
+            :href="route('settings.ai')"
+            class="mb-5 flex items-center gap-3 rounded-2xl border border-line px-3.5 py-3 transition-colors hover:border-line-strong active:bg-sunken"
+        >
+            <Gauge class="size-[18px] text-accent-text" />
+            <span class="flex-1">
+                <span class="block text-[15px] font-medium">Pemakaian AI</span>
+                <span class="block text-small text-muted">Permintaan, token & perkiraan sisa kuota gratis Gemini</span>
+            </span>
+            <ChevronRight class="size-4 text-muted" />
+        </Link>
 
         <!-- Sebutan untukmu -->
         <label class="mb-5 block">

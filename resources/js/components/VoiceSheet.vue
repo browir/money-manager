@@ -15,6 +15,7 @@ import { celebrate } from '@/composables/useCelebration';
 import { useLedger } from '@/composables/useLedger';
 import { openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { primeSpeech, speak, stopSpeaking, toggleSpeech, useSpeech } from '@/composables/useSpeech';
+import { usePrivacy } from '@/composables/usePrivacy';
 import { closeVoice, useVoice } from '@/composables/useVoice';
 import { pauseWakeWord, resumeWakeWord } from '@/composables/useWakeWord';
 import { dayLabel } from '@/lib/dates';
@@ -38,6 +39,9 @@ const text = ref('');
 const error = ref('');
 const reply = ref('');
 const encouragement = ref(''); // semangat/saran untuk diucapkan, tanpa angka
+// Nominal boleh diucapkan hanya bila pengguna memintanya di perintah (dan mode privasi mati).
+const speakAmounts = ref(false);
+const privacy = usePrivacy();
 const speech = useSpeech();
 const drafts = ref([]); // usulan transaksi
 const actions = ref([]); // usulan perubahan akun
@@ -112,6 +116,7 @@ onBeforeUnmount(() => recognizer?.abort());
 function clearResult() {
     reply.value = '';
     encouragement.value = '';
+    speakAmounts.value = false;
     drafts.value = [];
     actions.value = [];
     unclear.value = '';
@@ -227,13 +232,18 @@ async function process() {
     const stamp = Date.now();
     reply.value = body.reply ?? '';
     encouragement.value = body.encouragement ?? '';
+    speakAmounts.value = Boolean(body.speak_amounts) && !privacy.value;
     drafts.value = (body.items ?? []).map((d, i) => ({ ...d, key: `t${stamp}-${i}`, serverError: '' }));
     actions.value = (body.account_actions ?? []).map((a, i) => ({ ...a, key: `a${stamp}-${i}`, serverError: '' }));
     unclear.value = body.unclear ?? '';
     if (hasProposals.value || reply.value) {
         phase.value = 'review';
         // Nominal tidak pernah dibacakan: jawaban berangka cukup tampil di layar.
-        speak(hasProposals.value ? proposalLine(nick.value) : joinSpeech([ackLine(nick.value), encouragement.value]));
+        speak(
+            hasProposals.value
+                ? proposalLine(nick.value)
+                : joinSpeech([ackLine(nick.value), speakAmounts.value ? reply.value : '', encouragement.value]),
+        );
     } else {
         phase.value = 'input';
         error.value = unclear.value || 'Tidak ada yang bisa dikerjakan dari ucapan itu. Coba sebutkan apa dan berapa.';
@@ -244,17 +254,20 @@ async function process() {
 /* ---- Kalimat konfirmasi yang diucapkan (tanpa nominal) ---- */
 const joinSpeech = (parts) => parts.filter(Boolean).join(' ');
 
+const rp = (n) => `Rp ${new Intl.NumberFormat('id-ID').format(n)}`;
+
 function confirmation(items, accountActions) {
     const kind = { expense: 'pengeluaran', income: 'pemasukan', transfer: 'transfer' };
+    const say = speakAmounts.value; // nominal hanya bila diminta
     const parts = [];
-    if (items.length === 1) parts.push(`${kind[items[0].type]} sudah dicatat`);
+    if (items.length === 1) parts.push(`${kind[items[0].type]}${say ? ` ${rp(items[0].amount)}` : ''} sudah dicatat`);
     else if (items.length > 1) parts.push(`${items.length} transaksi sudah dicatat`);
     for (const a of accountActions) {
         const name = a.account_name ?? accountById.value[a.account_id]?.name ?? 'akun';
         parts.push({
             create: `akun ${a.name} sudah dibuat`,
             rename: `nama akun sudah diganti jadi ${a.name}`,
-            adjust_balance: `saldo ${name} sudah disesuaikan`,
+            adjust_balance: `saldo ${name} sudah disesuaikan${say && a.amount != null ? ` menjadi ${rp(a.amount)}` : ''}`,
             archive: `akun ${name} sudah diarsipkan`,
             unarchive: `akun ${name} sudah aktif lagi`,
         }[a.action]);

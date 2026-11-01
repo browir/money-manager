@@ -14,8 +14,16 @@ export const LAX = {
     spoken: 'Laks',
 };
 
-/** Siapkan teks untuk dibacakan: "LAX" diucapkan sebagai satu kata, bukan dieja. */
+/**
+ * Siapkan teks untuk dibacakan: "LAX" diucapkan sebagai satu kata (bukan dieja), dan nominal
+ * "Rp 25.000" dibaca wajar "25.000 rupiah" (hanya muncul bila pengguna meminta nominal diucapkan).
+ */
 export function forSpeech(text) {
+    // Angka format Indonesia (titik ribuan, koma desimal) tanpa ikut menelan tanda baca kalimat.
+    const amount = String.raw`(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)`;
+    text = text
+        .replace(new RegExp(String.raw`[-−]\s?Rp\s?` + amount, 'g'), 'minus $1 rupiah')
+        .replace(new RegExp(String.raw`Rp\s?` + amount, 'g'), '$1 rupiah');
     return text.replace(/\bLAX\b/gi, LAX.spoken);
 }
 
