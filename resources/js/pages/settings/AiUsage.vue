@@ -1,7 +1,7 @@
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
-import { AlertTriangle, ChevronLeft, ExternalLink, Mic, Sparkles } from 'lucide-vue-next';
-import { computed, reactive } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { AlertTriangle, ChevronLeft, ExternalLink, Mic, Sparkles, Trash2 } from 'lucide-vue-next';
+import { computed, reactive, ref } from 'vue';
 import { route } from 'ziggy-js';
 
 /* Pemakaian AI (Gemini/Claude) yang dicatat Sisih + perkiraan sisa kuota harian dari batas yang diisi pengguna. */
@@ -15,6 +15,7 @@ const props = defineProps({
     month: Object,
     resetAt: String,
     recent: Array,
+    examples: Object,
 });
 
 const num = (n) => new Intl.NumberFormat('id-ID').format(n ?? 0);
@@ -53,6 +54,24 @@ const reset = computed(() => {
 const maxDay = computed(() => Math.max(1, ...props.days.map((d) => d.requests)));
 const dayName = (iso) => new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(new Date(`${iso}T12:00:00`));
 const clock = (iso) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+
+/* Hapus bahan belajar: dua ketukan, karena tidak bisa dikembalikan. */
+const confirmClear = ref(false);
+const clearing = ref(false);
+function clearExamples() {
+    if (!confirmClear.value) {
+        confirmClear.value = true;
+        return;
+    }
+    clearing.value = true;
+    router.delete(route('settings.ai.examples'), {
+        preserveScroll: true,
+        onFinish: () => {
+            clearing.value = false;
+            confirmClear.value = false;
+        },
+    });
+}
 </script>
 
 <template>
@@ -172,6 +191,25 @@ const clock = (iso) => new Intl.DateTimeFormat('id-ID', { day: 'numeric', month:
                     <span class="shrink-0 text-small text-muted tnum">{{ num(r.tokens) }} token</span>
                 </li>
             </ul>
+        </section>
+
+        <!-- Bahan belajar LAX -->
+        <section v-if="examples" class="card p-4 md:p-5">
+            <h2 class="section-title mb-1">Bahan belajar LAX</h2>
+            <p class="text-small leading-relaxed text-muted">
+                Ucapanmu, usulan AI, dan hasil yang kamu simpan disimpan di databasemu sebagai bahan belajar LAX, lalu dibuang otomatis setelah {{ num(examples.keepDays) }} hari.
+                Belum dipakai untuk menjawab.
+            </p>
+            <p class="mt-3 text-[14px] tnum">{{ num(examples.total) }} contoh · {{ num(examples.applied) }} sudah kamu simpan</p>
+            <button
+                v-if="examples.total"
+                type="button"
+                class="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg border border-line px-3 text-small font-medium text-neg disabled:opacity-60"
+                :disabled="clearing"
+                @click="clearExamples"
+            >
+                <Trash2 class="size-4" /> {{ confirmClear ? 'Ketuk lagi untuk menghapus semua' : 'Hapus semua' }}
+            </button>
         </section>
 
         <section class="card p-4 text-small leading-relaxed text-muted md:p-5">

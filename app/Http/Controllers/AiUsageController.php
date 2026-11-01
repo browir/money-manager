@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AiUsage;
+use App\Models\AssistantExample;
 use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Carbon\CarbonImmutable;
@@ -56,6 +57,8 @@ class AiUsageController extends Controller
             return ['date' => $date, 'requests' => $list->count(), 'tokens' => (int) $list->sum('total_tokens')];
         });
 
+        $examples = Schema::hasTable('assistant_examples') ? AssistantExample::where('user_id', $request->user()->id) : null;
+
         $features = collect(['assistant', 'voice'])->mapWithKeys(fn ($f) => [$f => [
             'requests' => $counted->where('feature', $f)->count(),
             'tokens' => (int) $counted->where('feature', $f)->sum('total_tokens'),
@@ -75,6 +78,11 @@ class AiUsageController extends Controller
             'month' => ['requests' => $counted->count(), 'tokens' => (int) $counted->sum('total_tokens')],
             // Reset kuota harian berikutnya, dalam zona waktu aplikasi (WITA).
             'resetAt' => $now->addDay()->startOfDay()->setTimezone($appTz)->toIso8601String(),
+            'examples' => $examples ? [
+                'total' => (clone $examples)->count(),
+                'applied' => (clone $examples)->whereNotNull('applied_at')->count(),
+                'keepDays' => AssistantExample::KEEP_DAYS,
+            ] : null,
             'recent' => $rows->take(8)->map(fn ($u) => [
                 'at' => $u->created_at->toIso8601String(),
                 'model' => $u->model,
@@ -83,5 +91,16 @@ class AiUsageController extends Controller
                 'tokens' => $u->total_tokens,
             ])->values(),
         ]);
+    }
+
+    /** Hapus semua contoh latih milik pengguna ini. */
+    public function destroyExamples(Request $request)
+    {
+        if (Schema::hasTable('assistant_examples')) {
+            AssistantExample::where('user_id', $request->user()->id)->delete();
+        }
+        Inertia::flash('toast', ['message' => 'Bahan belajar LAX dihapus']);
+
+        return back();
     }
 }

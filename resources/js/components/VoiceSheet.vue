@@ -47,6 +47,7 @@ const speech = useSpeech();
 const drafts = ref([]); // usulan transaksi
 const actions = ref([]); // usulan perubahan akun
 const unclear = ref('');
+const exampleId = ref(null); // contoh latih di server, supaya hasil akhir bisa dicatat saat disimpan
 const hello = ref(''); // sapaan pembuka LAX
 const helloSpoken = ref(false); // sudah diucapkan: tidak perlu ditulis lagi di layar
 // Nama panggilan untuk "Tuan <nama>" (bisa diubah di Pengaturan → LAX).
@@ -121,6 +122,7 @@ function clearResult() {
     drafts.value = [];
     actions.value = [];
     unclear.value = '';
+    exampleId.value = null;
     generalError.value = '';
 }
 watch(
@@ -237,6 +239,7 @@ async function process() {
     drafts.value = (body.items ?? []).map((d, i) => ({ ...d, key: `t${stamp}-${i}`, serverError: '' }));
     actions.value = (body.account_actions ?? []).map((a, i) => ({ ...a, key: `a${stamp}-${i}`, serverError: '' }));
     unclear.value = body.unclear ?? '';
+    exampleId.value = body.example_id ?? null;
     if (hasProposals.value || reply.value) {
         phase.value = 'review';
         // Nominal hanya dibacakan bila diminta. Semangat dari AI boleh dilewati bila suara natural
@@ -390,7 +393,7 @@ function save() {
     drafts.value.forEach((d) => (d.serverError = ''));
     actions.value.forEach((a) => (a.serverError = ''));
 
-    router.post(route('assistant.apply'), { items, account_actions: accountActions }, {
+    router.post(route('assistant.apply'), { items, account_actions: accountActions, example_id: exampleId.value }, {
         preserveScroll: true,
         onSuccess: (p) => {
             closeVoice();

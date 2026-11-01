@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Account;
+use App\Models\AssistantExample;
 use App\Models\User;
 use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /** Asisten suara: jawaban AI dipalsukan, yang diuji pembersihan, validasi & penjalanannya. */
@@ -146,6 +148,76 @@ class AssistantTest extends TestCase
 
         $this->postJson(route('assistant.parse'), ['text' => 'bakso'])
             ->assertStatus(502)->assertJsonPath('message', 'Kuota Gemini habis untuk saat ini. Coba lagi nanti, atau catat manual dulu.');
+    }
+
+    public function test_contoh_latih_menyimpan_usulan_dan_hasil_akhir(): void
+    {
+        $this->fakeAi([
+            'reply' => 'Saldo BCA Rp 2.000.000',
+            'items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])],
+        ]);
+
+        $id = $this->actingAs($this->user)
+            ->postJson(route('assistant.parse'), ['text' => 'bakso 25 ribu', 'default_account_id' => $this->ids['cash']])
+            ->assertOk()->json('example_id');
+
+        $example = AssistantExample::findOrFail($id);
+        $this->assertSame('bakso 25 ribu', $example->text);
+        $this->assertSame($this->ids['cash'], $example->default_account_id);
+        $this->assertSame(25000, $example->proposal['items'][0]['amount']);
+        $this->assertArrayNotHasKey('issues', $example->proposal['items'][0]);
+        $this->assertTrue($example->proposal['answered']);
+        $this->assertStringNotContainsString('2.000.000', json_encode($example->proposal)); // jawaban tidak disimpan
+        $this->assertNull($example->final);
+
+        // Pengguna mengubah nominal saat meninjau: yang dicatat adalah versi akhirnya.
+        $this->post(route('assistant.apply'), [
+            'example_id' => $id,
+            'items' => [$this->item(['amount' => 30000, 'account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])],
+        ])->assertRedirect();
+
+        $example->refresh();
+        $this->assertSame(30000, $example->final['items'][0]['amount']);
+        $this->assertSame(25000, $example->proposal['items'][0]['amount']);
+        $this->assertNotNull($example->applied_at);
+    }
+
+    public function test_contoh_latih_tidak_mengganggu_asisten_bila_tabel_belum_ada(): void
+    {
+        Schema::drop('assistant_examples');
+        $this->fakeAi(['items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])]]);
+
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])
+            ->assertOk()->assertJsonPath('example_id', null);
+
+        $this->post(route('assistant.apply'), [
+            'example_id' => 1,
+            'items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(1, $this->user->transactions()->count());
+    }
+
+    public function test_contoh_latih_milik_orang_lain_tidak_tersentuh_dan_yang_lama_dibuang(): void
+    {
+        $stranger = User::factory()->create();
+        $foreign = AssistantExample::create(['user_id' => $stranger->id, 'text' => 'rahasia', 'proposal' => ['items' => []]]);
+        $old = AssistantExample::create(['user_id' => $this->user->id, 'text' => 'lama', 'proposal' => ['items' => []]]);
+        $old->forceFill(['created_at' => now()->subDays(AssistantExample::KEEP_DAYS + 1)])->save();
+        $this->fakeAi(['items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])]]);
+
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])->assertOk();
+        $this->assertModelMissing($old);
+
+        $this->post(route('assistant.apply'), [
+            'example_id' => $foreign->id,
+            'items' => [$this->item(['account_id' => $this->ids['cash'], 'category_id' => $this->ids['food']])],
+        ])->assertRedirect();
+        $this->assertNull($foreign->fresh()->final);
+
+        $this->delete(route('settings.ai.examples'))->assertRedirect();
+        $this->assertSame(0, AssistantExample::where('user_id', $this->user->id)->count());
+        $this->assertModelExists($foreign);
     }
 
     public function test_draf_dibersihkan_dari_id_dan_nilai_tidak_valid(): void

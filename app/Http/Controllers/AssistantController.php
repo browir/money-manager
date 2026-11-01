@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ValidatesTransactionFields;
 use App\Models\Account;
+use App\Models\AssistantExample;
 use App\Models\Transaction;
 use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
@@ -32,7 +33,12 @@ class AssistantController extends Controller
         }
 
         try {
-            return response()->json($assistant->handle($request->user(), $data['text'], $data['default_account_id'] ?? null, $data['call_name'] ?? null));
+            $result = $assistant->handle($request->user(), $data['text'], $data['default_account_id'] ?? null, $data['call_name'] ?? null);
+
+            return response()->json([
+                ...$result,
+                'example_id' => AssistantExample::capture($request->user(), $data['text'], $data['default_account_id'] ?? null, $assistant->lastModel, $result),
+            ]);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 502);
         }
@@ -72,6 +78,7 @@ class AssistantController extends Controller
         $request->validate([
             'items' => ['array', $max],
             'account_actions' => ['array', $max],
+            'example_id' => ['nullable', 'integer'],
         ]);
         if (! $request->input('items') && ! $request->input('account_actions')) {
             return back()->withErrors(['items' => 'Tidak ada yang perlu dijalankan.']);
@@ -155,7 +162,12 @@ class AssistantController extends Controller
             return $last;
         });
 
-        $count = count($data['items'] ?? []) + $actions->count();
+        // Di luar transaksi: di Postgres, query gagal di dalamnya akan membatalkan semua yang tersimpan.
+        if ($request->filled('example_id')) {
+            AssistantExample::finish($user, $request->integer('example_id'), $data['items'] ?? [], $data['account_actions'] ?? []);
+        }
+
+        $count =count($data['items'] ?? []) + $actions->count();
         if ($lastTransaction) {
             Inertia::flash('saved', $lastTransaction->id);
         }

@@ -45,6 +45,9 @@ class VoiceAssistant
 
     private const GEMINI_TOTAL_SECONDS = 50;
 
+    /** Model yang menjawab permintaan terakhir, dicatat di contoh latih. */
+    public ?string $lastModel = null;
+
     private const SYSTEM = <<<'TXT'
         Kamu adalah LAX (Ledger Assistant eXtraordinaire), asisten pribadi di aplikasi buku kas
         "Sisih". LAX berkarakter PEREMPUAN: anggun, hangat, ceria, suportif, sedikit jenaka, setia dan
@@ -295,6 +298,8 @@ class VoiceAssistant
             // Jaga-jaga bila balasan tetap dibungkus pagar markdown ```json.
             $data = json_decode(trim(preg_replace('/^```(?:json)?\s*|\s*```$/', '', trim($text))), true);
             if (is_array($data)) {
+                $this->lastModel = $model;
+
                 return $data;
             }
 
@@ -330,6 +335,7 @@ class VoiceAssistant
 
         try {
             $message = $client->beta->messages->create(...$params);
+            $this->lastModel = $model;
             AiUsage::record('claude', $model, 'assistant', 'ok', [
                 'prompt' => $message->usage->inputTokens + ($message->usage->cacheReadInputTokens ?? 0) + ($message->usage->cacheCreationInputTokens ?? 0),
                 'output' => $message->usage->outputTokens,
