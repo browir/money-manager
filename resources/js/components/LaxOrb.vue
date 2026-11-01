@@ -50,9 +50,9 @@ defineProps({
     inset: 0;
     border-radius: 50%;
     background:
-        radial-gradient(circle at 68% 74%, color-mix(in oklab, var(--c-iris) 85%, transparent), transparent 55%),
+        radial-gradient(circle at 68% 74%, color-mix(in oklab, var(--c-rose) 70%, transparent), transparent 55%),
         radial-gradient(circle at 25% 80%, color-mix(in oklab, var(--c-teal) 70%, transparent), transparent 50%),
-        conic-gradient(from var(--lax-spin), var(--hero-from), var(--hero-to), var(--c-teal), var(--c-iris), var(--hero-from));
+        conic-gradient(from var(--lax-spin), var(--hero-from), var(--hero-to), var(--c-teal), var(--c-iris), var(--c-rose), var(--hero-from));
     box-shadow:
         inset 0 calc(var(--orb) * -0.08) calc(var(--orb) * 0.18) rgb(0 0 0 / 0.28),
         inset 0 calc(var(--orb) * 0.04) calc(var(--orb) * 0.1) rgb(255 255 255 / 0.25),

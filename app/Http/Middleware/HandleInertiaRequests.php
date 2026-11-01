@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,8 @@ class HandleInertiaRequests extends Middleware
             'features' => [
                 'voice' => app(VoiceAssistant::class)->enabled(),
                 'voiceProvider' => app(VoiceAssistant::class)->providerLabel(),
+                // Suara natural LAX (Gemini TTS); tanpa ini LAX memakai suara perangkat.
+                'cloudVoice' => app(LaxVoice::class)->enabled() ? LaxVoice::VOICES : null, // nama => karakter
             ],
             // Awal periode bulanan (tanggal gajian) dan rentang periode berjalan.
             'period' => $period ? [

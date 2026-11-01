@@ -1,16 +1,23 @@
 import { computed, reactive, ref } from 'vue';
+import { route } from 'ziggy-js';
+import { postJson } from '@/lib/http';
 
 /**
- * Suara asisten: membacakan konfirmasi & semangat dengan suara bawaan perangkat
- * (Web Speech API, gratis, tanpa server). Teks yang dibacakan TIDAK boleh berisi
- * nominal/saldo; server sudah menyaringnya (VoiceAssistant::speakable).
+ * Suara LAX. Dua sumber:
+ * - "gemini": suara natural dari Gemini TTS lewat server (/asisten/ucap), bila GEMINI_API_KEY ada;
+ * - "device": suara bawaan perangkat (Web Speech API), juga cadangan bila Gemini gagal.
+ * Teks yang dibacakan TIDAK boleh berisi nominal/saldo (server menyaring jawaban AI,
+ * kalimat konfirmasi dibuat di lib/lax.js tanpa angka uang).
  *
- * Pilihan suara, kecepatan & nada disimpan per perangkat (daftar suara berbeda di tiap HP).
+ * Pengaturan disimpan per perangkat.
  */
 const KEY = 'sisih:speak';
 const SETTINGS_KEY = 'sisih:voice';
-const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-const SAMPLE = 'Halo, aku LAX, asisten buku kasmu. Semangat mencatat keuangan hari ini, ya!';
+const supported = typeof window !== 'undefined' && ('speechSynthesis' in window || 'Audio' in window);
+const deviceSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+const SAMPLE = 'Halo, Tuan. Saya LAX, asisten pribadi Anda. Semangat mencatat keuangan hari ini, ya!';
+// WAV hening sangat pendek: memutarnya saat ketukan "membuka kunci" pemutar audio di iOS.
+const SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
 
 function read(key, fallback) {
     try {
@@ -29,37 +36,54 @@ function write(key, value) {
 }
 
 const enabled = ref(supported && read(KEY, 1) !== 0);
-// Sedang berbicara + teks yang diucapkan (untuk orb LAX & teks melayang).
-const speaking = ref(false);
+const speaking = ref(false); // untuk orb LAX & teks melayang
 const caption = ref('');
-let current = null;
-let safety = null;
-const settings = reactive({ voiceURI: null, rate: 1, pitch: 1, ...read(SETTINGS_KEY, {}) });
+const loading = ref(false); // menunggu audio Gemini
+const settings = reactive({
+    source: 'gemini',
+    cloudVoice: 'Sulafat',
+    voiceURI: null,
+    rate: 1,
+    pitch: 1,
+    ...read(SETTINGS_KEY, {}),
+});
+const cloudVoices = ref(null); // nama suara Gemini dari server; null = tidak tersedia
+const cloudVoiceTraits = ref({}); // nama => karakter ("hangat", "ceria", ...)
 
-/* Daftar suara dimuat asinkron (Chrome mengisi setelah event voiceschanged). */
+/* Suara perangkat dimuat asinkron (Chrome mengisi setelah event voiceschanged). */
 const voices = ref([]);
-if (supported) {
+if (deviceSupported) {
     const load = () => (voices.value = window.speechSynthesis.getVoices());
     load();
     window.speechSynthesis.addEventListener?.('voiceschanged', load);
 }
 
 const isIndonesian = (v) => v.lang?.toLowerCase().replace('_', '-').startsWith('id');
-// Suara "Natural"/online (Edge, Chrome, iOS "Enhanced") jauh lebih halus daripada suara lokal lama.
-const quality = (v) => (/natural|neural|enhanced|premium/i.test(v.name) ? 2 : 0) + (/google|online/i.test(v.name) || !v.localService ? 1 : 0);
-
-/** Suara Bahasa Indonesia, terbaik dulu. */
+// LAX berkarakter perempuan: utamakan suara perempuan yang dikenal (Gadis di Edge, Damayanti di iOS,
+// Google Bahasa Indonesia), lalu suara "Natural"/online yang lebih halus daripada suara lokal lama.
+const female = (v) => (/gadis|damayanti|female|wanita|perempuan|google/i.test(v.name) ? 4 : /andika|ardi|\bmale\b|pria/i.test(v.name) ? -4 : 0);
+const quality = (v) => female(v) + (/natural|neural|enhanced|premium/i.test(v.name) ? 2 : 0) + (/google|online/i.test(v.name) || !v.localService ? 1 : 0);
 const indonesianVoices = computed(() => voices.value.filter(isIndonesian).sort((a, b) => quality(b) - quality(a)));
 
 function currentVoice() {
     return voices.value.find((v) => v.voiceURI === settings.voiceURI) ?? indonesianVoices.value[0] ?? null;
 }
 
+const usesCloud = computed(() => settings.source === 'gemini' && Boolean(cloudVoices.value?.length));
+
 export function useSpeech() {
-    return { enabled, supported, settings, indonesianVoices, currentVoice, speaking, caption };
+    return { enabled, supported, deviceSupported, settings, indonesianVoices, currentVoice, speaking, caption, loading, cloudVoices, cloudVoiceTraits, usesCloud };
 }
 
-/** Nama suara yang ramah dibaca: "Microsoft Gadis Online (Natural) - Indonesian (Indonesia)" -> "Gadis (Natural)". */
+/** AppLayout memberi tahu suara Gemini yang tersedia (props features.cloudVoice: { nama: karakter }). */
+export function setCloudVoices(map) {
+    const list = map ? Object.keys(map) : [];
+    cloudVoiceTraits.value = map ?? {};
+    cloudVoices.value = list.length ? list : null;
+    if (cloudVoices.value && !cloudVoices.value.includes(settings.cloudVoice)) settings.cloudVoice = cloudVoices.value[0];
+}
+
+/** Nama suara perangkat yang ramah dibaca: "Microsoft Gadis Online (Natural) - Indonesian (Indonesia)" -> "Gadis (Natural)". */
 export function voiceLabel(v) {
     const name = v.name
         .replace(/\s*[-–]\s*(Indonesian|Bahasa Indonesia).*$/i, '')
@@ -77,26 +101,50 @@ export function toggleSpeech() {
 
 export function saveVoiceSettings(patch) {
     Object.assign(settings, patch);
-    write(SETTINGS_KEY, { voiceURI: settings.voiceURI, rate: settings.rate, pitch: settings.pitch });
+    const { source, cloudVoice, voiceURI, rate, pitch } = settings;
+    write(SETTINGS_KEY, { source, cloudVoice, voiceURI, rate, pitch });
+}
+
+/* ---- Pemutar ---- */
+let audio = null;
+let token = 0; // ucapan yang lebih baru membatalkan yang lama
+let safety = null;
+const cache = new Map(); // "suara|teks" -> object URL audio Gemini (kalimat sapaan sering berulang)
+
+function player() {
+    audio ??= new Audio();
+    return audio;
 }
 
 /**
- * iOS Safari hanya mengizinkan suara yang dimulai dari ketukan pengguna. Panggil ini di
+ * Browser HP hanya mengizinkan suara yang dimulai dari ketukan pengguna. Panggil ini di
  * dalam handler klik (sebelum menunggu jaringan) agar ucapan berikutnya tidak diblokir.
  */
 export function primeSpeech() {
-    if (!supported || !enabled.value) return;
-    const silent = new SpeechSynthesisUtterance('');
-    silent.volume = 0;
-    window.speechSynthesis.speak(silent);
+    if (!enabled.value) return;
+    if (deviceSupported) {
+        const silent = new SpeechSynthesisUtterance('');
+        silent.volume = 0;
+        window.speechSynthesis.speak(silent);
+    }
+    if (usesCloud.value) {
+        const a = player();
+        a.src = SILENT;
+        a.play().catch(() => {});
+    }
 }
 
-/** onEnd dipanggil setelah selesai bicara, atau langsung bila suara mati (mis. lanjut mendengarkan). */
-export function speak(text, { force = false, onEnd = null } = {}) {
-    if (!supported || (!enabled.value && !force) || !text) {
-        onEnd?.();
-        return;
-    }
+function finish(id, onEnd) {
+    if (id !== token) return;
+    speaking.value = false;
+    caption.value = '';
+    loading.value = false;
+    clearTimeout(safety);
+    onEnd?.();
+}
+
+function speakDevice(text, id, onEnd) {
+    if (!deviceSupported) return finish(id, onEnd);
     const synth = window.speechSynthesis;
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -105,36 +153,89 @@ export function speak(text, { force = false, onEnd = null } = {}) {
     if (voice) utterance.voice = voice;
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
-    const done = () => {
-        if (current !== utterance) return;
-        current = null;
-        speaking.value = false;
-        caption.value = '';
-        clearTimeout(safety);
-        onEnd?.();
-    };
     utterance.onstart = () => {
+        if (id !== token) return;
         speaking.value = true;
         caption.value = text;
     };
-    utterance.onend = done;
-    utterance.onerror = done;
-    current = utterance;
+    utterance.onend = () => finish(id, onEnd);
+    utterance.onerror = () => finish(id, onEnd);
     // Sebagian browser tidak selalu memicu onend: tutup teks melayang paling lambat setelah ini.
     clearTimeout(safety);
-    safety = setTimeout(done, 4000 + text.length * 90 / settings.rate);
+    safety = setTimeout(() => finish(id, onEnd), 4000 + (text.length * 90) / settings.rate);
     synth.speak(utterance);
 }
 
-/** Contoh suara di pengaturan (tetap berbunyi walau suara asisten dimatikan). */
+async function speakCloud(text, id, onEnd) {
+    const key = `${settings.cloudVoice}|${text}`;
+    let url = cache.get(key);
+    if (!url) {
+        loading.value = true;
+        try {
+            const response = await postJson(route('assistant.speak'), { text, voice: settings.cloudVoice });
+            if (!response.ok) throw new Error(String(response.status));
+            url = URL.createObjectURL(await response.blob());
+            cache.set(key, url);
+            if (cache.size > 40) {
+                const [oldKey, oldUrl] = cache.entries().next().value;
+                URL.revokeObjectURL(oldUrl);
+                cache.delete(oldKey);
+            }
+        } catch {
+            if (id === token) {
+                loading.value = false;
+                speakDevice(text, id, onEnd); // cadangan: suara perangkat
+            }
+            return;
+        }
+    }
+    if (id !== token) return;
+    loading.value = false;
+
+    const a = player();
+    a.src = url;
+    a.playbackRate = settings.rate;
+    a.onplaying = () => {
+        if (id !== token) return;
+        speaking.value = true;
+        caption.value = text;
+    };
+    a.onended = () => finish(id, onEnd);
+    a.onerror = () => id === token && speakDevice(text, id, onEnd);
+    try {
+        await a.play();
+    } catch {
+        // Diblokir aturan autoplay (belum ada ketukan): pakai suara perangkat.
+        if (id === token) speakDevice(text, id, onEnd);
+    }
+}
+
+/** onEnd dipanggil setelah selesai bicara, atau langsung bila suara mati (mis. lanjut mendengarkan). */
+export function speak(text, { force = false, onEnd = null } = {}) {
+    if (!supported || (!enabled.value && !force) || !text) {
+        onEnd?.();
+        return;
+    }
+    stopSpeaking();
+    const id = ++token;
+    if (usesCloud.value) speakCloud(text, id, onEnd);
+    else speakDevice(text, id, onEnd);
+}
+
+/** Contoh suara di pengaturan (tetap berbunyi walau suara LAX dimatikan). */
 export function previewVoice() {
     speak(SAMPLE, { force: true });
 }
 
 export function stopSpeaking() {
-    if (!supported) return;
-    current = null;
+    token++;
     speaking.value = false;
     caption.value = '';
-    window.speechSynthesis.cancel();
+    loading.value = false;
+    clearTimeout(safety);
+    if (deviceSupported) window.speechSynthesis.cancel();
+    if (audio) {
+        audio.pause();
+        audio.onended = audio.onerror = audio.onplaying = null;
+    }
 }

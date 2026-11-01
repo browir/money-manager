@@ -1,7 +1,7 @@
 <script setup>
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Repeat, Search, Settings, Sun, Wallet } from 'lucide-vue-next';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
 import LaxCaption from '@/components/LaxCaption.vue';
@@ -14,6 +14,7 @@ import TransactionSheet from '@/components/TransactionSheet.vue';
 import VoiceSheet from '@/components/VoiceSheet.vue';
 import Toaster from '@/components/ui/Toaster.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
+import { setCloudVoices } from '@/composables/useSpeech';
 import { openVoice } from '@/composables/useVoice';
 import { initWakeWord } from '@/composables/useWakeWord';
 import { useShortcuts } from '@/composables/useShortcuts';
@@ -75,6 +76,7 @@ onMounted(() => {
 onUnmounted(() => stopListeners.forEach((stop) => stop()));
 
 /* "Hei LAX": aktif hanya bila dinyalakan di Pengaturan dan kunci AI terpasang. */
+watch(() => page.props.features?.cloudVoice, setCloudVoices, { immediate: true });
 onMounted(() => {
     if (!page.props.features?.voice) return;
     stopListeners.push(initWakeWord((rest) => openVoice({ wake: true, prefill: rest })));

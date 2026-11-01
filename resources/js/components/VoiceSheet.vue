@@ -20,7 +20,7 @@ import { pauseWakeWord, resumeWakeWord } from '@/composables/useWakeWord';
 import { dayLabel } from '@/lib/dates';
 import { postJson } from '@/lib/http';
 import { ACCOUNT_TYPES, accountIcon, categoryIcon } from '@/lib/icons';
-import { ANSWER_LINES, LAX, PROPOSAL_LINES, doneLine, greeting, pick, wakeLine } from '@/lib/lax';
+import { LAX, ackLine, callName, doneLine, greeting, proposalLine, wakeLine } from '@/lib/lax';
 
 /* ---------------------------------------------------------------
    LAX (Ledger Assistant eXtraordinaire), asisten suara Sisih:
@@ -43,7 +43,9 @@ const drafts = ref([]); // usulan transaksi
 const actions = ref([]); // usulan perubahan akun
 const unclear = ref('');
 const hello = ref(''); // sapaan pembuka LAX
-const firstName = computed(() => (page.props.auth.user?.name ?? '').split(' ')[0]);
+const helloSpoken = ref(false); // sudah diucapkan: tidak perlu ditulis lagi di layar
+// Nama panggilan untuk "Tuan <nama>" (bisa diubah di Pengaturan → LAX).
+const nick = computed(() => callName(page.props.auth.user?.name ?? ''));
 const saving = ref(false);
 const generalError = ref('');
 
@@ -139,8 +141,9 @@ watch(
         } catch {
             // sessionStorage diblokir: anggap bukan yang pertama.
         }
-        hello.value = firstTime || !state.wake ? greeting(firstName.value) : wakeLine(firstName.value);
+        hello.value = firstTime || !state.wake ? greeting(nick.value) : wakeLine(nick.value);
         // Dibuka dengan ketukan: sapa sekali per sesi. Dipanggil "Hei LAX": selalu menjawab, lalu langsung mendengarkan.
+        helloSpoken.value = speech.enabled.value && (state.wake || firstTime);
         if (state.wake) speak(hello.value, { onEnd: listenSoon });
         else if (firstTime) speak(hello.value);
     },
@@ -199,7 +202,7 @@ async function process() {
 
     let response;
     try {
-        response = await postJson(route('assistant.parse'), { text: spoken, default_account_id: lastAccount() });
+        response = await postJson(route('assistant.parse'), { text: spoken, default_account_id: lastAccount(), call_name: nick.value });
     } catch {
         phase.value = 'input';
         error.value = 'Gagal terhubung ke server. Coba lagi.';
@@ -230,7 +233,7 @@ async function process() {
     if (hasProposals.value || reply.value) {
         phase.value = 'review';
         // Nominal tidak pernah dibacakan: jawaban berangka cukup tampil di layar.
-        speak(hasProposals.value ? pick(PROPOSAL_LINES) : joinSpeech([pick(ANSWER_LINES), encouragement.value]));
+        speak(hasProposals.value ? proposalLine(nick.value) : joinSpeech([ackLine(nick.value), encouragement.value]));
     } else {
         phase.value = 'input';
         error.value = unclear.value || 'Tidak ada yang bisa dikerjakan dari ucapan itu. Coba sebutkan apa dan berapa.';
@@ -256,12 +259,12 @@ function confirmation(items, accountActions) {
             unarchive: `akun ${name} sudah aktif lagi`,
         }[a.action]);
     }
-    return doneLine(parts);
+    return doneLine(parts, nick.value);
 }
 
 /* Keadaan orb LAX. */
 const orbState = computed(() =>
-    listening.value ? 'listening' : phase.value === 'loading' ? 'thinking' : speech.speaking.value ? 'speaking' : 'idle',
+    listening.value ? 'listening' : phase.value === 'loading' || speech.loading.value ? 'thinking' : speech.speaking.value ? 'speaking' : 'idle',
 );
 const status = computed(
     () =>
@@ -464,7 +467,7 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
             </div>
 
             <!-- Sapaan LAX -->
-            <div v-if="hello && phase === 'input' && !text" class="mb-4 flex items-end gap-2">
+            <div v-if="hello && !helloSpoken && phase === 'input' && !text" class="mb-4 flex items-end gap-2">
                 <LaxOrb :size="26" />
                 <p class="rounded-[18px] rounded-bl-md bg-accent-soft/80 px-3.5 py-2.5 text-[14px] leading-relaxed text-ink">{{ hello }}</p>
             </div>
@@ -534,15 +537,16 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
                 <p class="rounded-[18px] rounded-br-md bg-accent px-3.5 py-2.5 text-[14px] leading-relaxed text-accent-fg">{{ text.trim() }}</p>
             </div>
 
-            <!-- Balasan LAX (kiri) -->
-            <div class="mb-3 flex items-end gap-2 pr-6">
+            <!-- Balasan LAX (kiri). Yang sudah diucapkan (semangat, pengantar) tidak ditulis lagi bila suara menyala;
+                 jawaban berangka tetap tampil karena tidak pernah diucapkan. -->
+            <div v-if="reply || (!speech.enabled.value && (hasProposals || encouragement))" class="mb-3 flex items-end gap-2 pr-6">
                 <LaxOrb :state="speech.speaking.value ? 'speaking' : 'idle'" :size="26" />
                 <div class="space-y-1.5 rounded-[18px] rounded-bl-md bg-accent-soft/80 px-3.5 py-2.5">
                     <p v-if="reply" class="text-[15px] leading-relaxed text-ink">{{ reply }}</p>
-                    <p v-else-if="hasProposals" class="text-[14px] leading-relaxed text-ink">
+                    <p v-else-if="hasProposals && !speech.enabled.value" class="text-[14px] leading-relaxed text-ink">
                         Ini yang {{ LAX.name }} siapkan. Cek dulu, buang yang tidak perlu, lalu jalankan.
                     </p>
-                    <p v-if="encouragement" class="text-small leading-relaxed text-ink-2">{{ encouragement }}</p>
+                    <p v-if="encouragement && !speech.enabled.value" class="text-small leading-relaxed text-ink-2">{{ encouragement }}</p>
                 </div>
             </div>
 

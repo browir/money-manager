@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
     // Asisten suara (Gemini/Claude). Urai dibatasi agar biaya/kuota API tidak bocor bila ditekan berulang.
     Route::post('/asisten', [AssistantController::class, 'parse'])->middleware('throttle:20,1')->name('assistant.parse');
     Route::post('/asisten/jalankan', [AssistantController::class, 'apply'])->name('assistant.apply');
+    Route::post('/asisten/ucap', [AssistantController::class, 'speak'])->middleware('throttle:40,1')->name('assistant.speak');
 
     Route::get('/pengaturan', [SettingsController::class, 'edit'])->name('settings');
     Route::put('/pengaturan/profil', [SettingsController::class, 'updateProfile'])->name('settings.profile');

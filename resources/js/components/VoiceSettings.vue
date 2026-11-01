@@ -1,10 +1,20 @@
 <script setup>
+import { usePage } from '@inertiajs/vue3';
 import { Play } from 'lucide-vue-next';
+import Segmented from '@/components/ui/Segmented.vue';
 import { previewVoice, saveVoiceSettings, toggleSpeech, useSpeech, voiceLabel } from '@/composables/useSpeech';
+import { guessNick, laxNick, setLaxNick } from '@/lib/lax';
 import { setWakeWord, useWakeWord } from '@/composables/useWakeWord';
 
 /* Pengaturan suara asisten: suara perangkat yang dipakai, kecepatan, nada. */
-const { enabled, settings, indonesianVoices, currentVoice } = useSpeech();
+const { enabled, settings, indonesianVoices, currentVoice, cloudVoices, cloudVoiceTraits, usesCloud, deviceSupported } = useSpeech();
+const page = usePage();
+const guessed = guessNick(page.props.auth.user?.name ?? '');
+
+function chooseCloud(name) {
+    saveVoiceSettings({ cloudVoice: name });
+    previewVoice();
+}
 const wake = useWakeWord();
 const isApple = typeof navigator !== 'undefined' && /iPhone|iPad|Mac/.test(navigator.userAgent);
 
@@ -63,8 +73,55 @@ function pick(voiceURI) {
             </p>
         </div>
 
+        <!-- Sebutan untukmu -->
+        <label class="mb-5 block">
+            <span class="field-label">Nama panggilan</span>
+            <input
+                class="field"
+                maxlength="30"
+                :value="laxNick"
+                :placeholder="guessed || 'mis. Wira'"
+                autocomplete="off"
+                @change="setLaxNick($event.target.value)"
+            />
+            <span class="mt-1.5 block text-small text-muted">
+                LAX memanggilmu “Tuan”, “Tuan {{ laxNick || guessed || '…' }}”, atau “Tuan Muda”.
+            </span>
+        </label>
+
         <div class="flex flex-col gap-4" :class="!enabled && 'opacity-60'">
-            <label class="block">
+            <div v-if="cloudVoices">
+                <span class="field-label">Sumber suara</span>
+                <Segmented
+                    :model-value="settings.source"
+                    :options="[
+                        { value: 'gemini', label: 'Gemini (natural)' },
+                        { value: 'device', label: 'Suara HP' },
+                    ]"
+                    @update:model-value="(v) => (saveVoiceSettings({ source: v }), previewVoice())"
+                />
+            </div>
+
+            <!-- Suara Gemini: pilih karakter -->
+            <div v-if="usesCloud">
+                <span class="field-label">Karakter suara (perempuan)</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <button
+                        v-for="name in cloudVoices"
+                        :key="name"
+                        type="button"
+                        class="flex h-12 items-center justify-between rounded-xl border px-3 text-left transition active:scale-[0.98]"
+                        :class="settings.cloudVoice === name ? 'border-accent bg-accent-soft' : 'border-line hover:border-line-strong'"
+                        :aria-pressed="settings.cloudVoice === name"
+                        @click="chooseCloud(name)"
+                    >
+                        <span class="text-[14px] font-medium">{{ name }}</span>
+                        <span class="text-small text-muted">{{ cloudVoiceTraits[name] }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <label v-if="!usesCloud && deviceSupported" class="block">
                 <span class="field-label">Suara</span>
                 <select class="field" :value="settings.voiceURI ?? ''" @change="pick($event.target.value)">
                     <option value="">Otomatis{{ currentVoice() && !settings.voiceURI ? ` (${voiceLabel(currentVoice())})` : '' }}</option>
@@ -73,7 +130,7 @@ function pick(voiceURI) {
                     </option>
                 </select>
             </label>
-            <p v-if="!indonesianVoices.length" class="-mt-2 text-small text-warn">
+            <p v-if="!usesCloud && !indonesianVoices.length" class="-mt-2 text-small text-warn">
                 Perangkat ini belum punya suara Bahasa Indonesia, jadi dibacakan dengan suara lain. Pasang lewat petunjuk di bawah.
             </p>
 
@@ -89,7 +146,7 @@ function pick(voiceURI) {
                     @change="saveVoiceSettings({ rate: Number($event.target.value) }), previewVoice()"
                 />
             </label>
-            <label class="block">
+            <label v-if="!usesCloud" class="block">
                 <span class="field-label flex justify-between">Nada <span class="font-normal text-muted">{{ settings.pitch < 0.95 ? 'lebih berat' : settings.pitch > 1.05 ? 'lebih tinggi' : 'normal' }}</span></span>
                 <input
                     type="range"
@@ -114,7 +171,11 @@ function pick(voiceURI) {
                 </button>
             </div>
 
-            <p class="text-small leading-relaxed text-muted">
+            <p v-if="usesCloud" class="text-small leading-relaxed text-muted">
+                Suara Gemini dibuat lewat internet dan memakai kuota Gemini; kalimat yang sama disimpan sementara agar hemat. Bila gagal
+                (offline atau kuota habis), LAX otomatis memakai suara HP. Teks yang dibacakan tidak pernah berisi nominal.
+            </p>
+            <p v-else class="text-small leading-relaxed text-muted">
                 Ingin suara yang lebih natural? Pasang suara Bahasa Indonesia berkualitas tinggi di HP, lalu pilih di atas.
                 <template v-if="isApple">iPhone: Pengaturan → Aksesibilitas → Konten Lisan → Suara → Bahasa Indonesia, unduh versi "Ditingkatkan".</template>
                 <template v-else>Android: Pengaturan → Text-to-speech → Mesin Google → Bahasa Indonesia, unduh suara lalu pilih variannya.</template>

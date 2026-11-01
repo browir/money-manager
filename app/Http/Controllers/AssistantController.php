@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ValidatesTransactionFields;
 use App\Models\Account;
 use App\Models\Transaction;
+use App\Support\LaxVoice;
 use App\Support\VoiceAssistant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class AssistantController extends Controller
         $data = $request->validate([
             'text' => ['required', 'string', 'max:1000'],
             'default_account_id' => ['nullable', 'integer'],
+            'call_name' => ['nullable', 'string', 'max:30'],
         ]);
 
         if (! $assistant->enabled()) {
@@ -30,10 +32,31 @@ class AssistantController extends Controller
         }
 
         try {
-            return response()->json($assistant->handle($request->user(), $data['text'], $data['default_account_id'] ?? null));
+            return response()->json($assistant->handle($request->user(), $data['text'], $data['default_account_id'] ?? null, $data['call_name'] ?? null));
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 502);
         }
+    }
+
+    /** Suara LAX dari Gemini: teks pendek (tanpa nominal) -> audio WAV. Klien jatuh ke suara perangkat bila gagal. */
+    public function speak(Request $request, LaxVoice $voice)
+    {
+        $data = $request->validate([
+            'text' => ['required', 'string', 'max:400'],
+            'voice' => ['nullable', Rule::in(array_keys(LaxVoice::VOICES))],
+        ]);
+
+        if (! $voice->enabled()) {
+            return response()->json(['message' => 'Suara Gemini butuh GEMINI_API_KEY.'], 503);
+        }
+
+        try {
+            $wav = $voice->synthesize($data['text'], $data['voice'] ?? LaxVoice::DEFAULT_VOICE);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+
+        return response($wav, 200, ['Content-Type' => 'audio/wav', 'Cache-Control' => 'private, max-age=86400']);
     }
 
     /**

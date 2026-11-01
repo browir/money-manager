@@ -263,4 +263,35 @@ class AssistantTest extends TestCase
     {
         $this->actingAs($this->user)->post(route('assistant.apply'), [])->assertSessionHasErrors('items');
     }
+
+    public function test_suara_gemini_dibungkus_wav_dan_jatuh_ke_model_berikutnya(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji', 'services.gemini.tts_models' => ['tts-a', 'tts-b']]);
+        $pcm = str_repeat("\x01\x00", 2400);
+        Http::fake([
+            '*/models/tts-a:generateContent' => Http::response([], 404),
+            '*/models/tts-b:generateContent' => Http::response(['candidates' => [['content' => ['parts' => [[
+                'inlineData' => ['mimeType' => 'audio/L16;codec=pcm;rate=24000', 'data' => base64_encode($pcm)],
+            ]]]]]]),
+        ]);
+
+        $response = $this->actingAs($this->user)->post(route('assistant.speak'), ['text' => 'Beres! Pengeluaran sudah dicatat.', 'voice' => 'Kore'])
+            ->assertOk()->assertHeader('Content-Type', 'audio/wav');
+
+        $wav = $response->getContent();
+        $this->assertSame('RIFF', substr($wav, 0, 4));
+        $this->assertSame(44 + strlen($pcm), strlen($wav));
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'tts-b')
+            && $r['generationConfig']['responseModalities'] === ['AUDIO']
+            && $r['generationConfig']['speechConfig']['voiceConfig']['prebuiltVoiceConfig']['voiceName'] === 'Kore');
+    }
+
+    public function test_suara_gemini_menolak_suara_asing_dan_tanpa_kunci(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji']);
+        $this->actingAs($this->user)->postJson(route('assistant.speak'), ['text' => 'Halo', 'voice' => 'Bukan'])->assertStatus(422);
+
+        config(['services.gemini.key' => null]);
+        $this->postJson(route('assistant.speak'), ['text' => 'Halo'])->assertStatus(503);
+    }
 }

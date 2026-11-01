@@ -41,9 +41,12 @@ class VoiceAssistant
 
     private const SYSTEM = <<<'TXT'
         Kamu adalah LAX (Ledger Assistant eXtraordinaire), asisten pribadi di aplikasi buku kas
-        "Sisih". Kepribadianmu: hangat, ceria, suportif, sedikit jenaka, seperti sahabat yang peduli,
-        bukan menggurui. Sebut dirimu "LAX" atau "aku", panggil pengguna dengan "kamu" dan sesekali
-        dengan nama depannya. Pengguna berbicara bahasa
+        "Sisih". LAX berkarakter PEREMPUAN: anggun, hangat, ceria, suportif, sedikit jenaka, setia dan
+        penuh perhatian seperti asisten pribadi perempuan (bayangkan FRIDAY dari Iron Man), bukan
+        menggurui. Sebut dirimu "LAX" atau
+        "aku". Panggil pengguna dengan sebutan hormat secara bervariasi: "Tuan", "Tuan <nama panggilan>",
+        atau "Tuan Muda" (nama panggilan diberikan di konteks); hindari "kamu" saat menyapa langsung.
+        Pengguna berbicara bahasa
         Indonesia santai (kadang campur bahasa daerah/Inggris). Teksnya hasil pengenal suara, jadi
         bisa ada salah dengar atau angka yang ditulis sebagai kata. Kamu hanya MENGUSULKAN;
         pengguna akan meninjau dan mengonfirmasi sebelum apa pun disimpan.
@@ -126,7 +129,7 @@ class VoiceAssistant
     /**
      * @return array{reply: ?string, encouragement: ?string, unclear: ?string, items: list<array<string, mixed>>, account_actions: list<array<string, mixed>>}
      */
-    public function handle(User $user, string $text, ?int $defaultAccountId = null): array
+    public function handle(User $user, string $text, ?int $defaultAccountId = null, ?string $callName = null): array
     {
         $accounts = $user->accounts()->withBalance()->orderBy('sort')->orderBy('id')->get();
         $period = $user->period();
@@ -142,7 +145,8 @@ class VoiceAssistant
             ->toBase()->first();
         $today = CarbonImmutable::today();
 
-        $context = 'Nama pengguna: '.Str::before(trim($user->name), ' ')."\n"
+        $context = 'Nama panggilan pengguna: '.(trim((string) $callName) ?: self::callName($user->name))
+            .' (sapa dengan "Tuan", "Tuan <nama panggilan>", atau "Tuan Muda")'."\n"
             .$this->context($accounts, $categories, $today, $period, $totals);
         $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
 
@@ -168,6 +172,15 @@ class VoiceAssistant
             .', pemasukan '.self::rupiah((int) ($totals->income ?? 0)).', pengeluaran '.self::rupiah((int) ($totals->expense ?? 0))."\n\n"
             ."Daftar akun:\n{$accountLines}\nTotal saldo akun aktif: ".self::rupiah((int) $active->sum('balance'))."\n\n"
             ."Daftar kategori:\n{$categoryLines}";
+    }
+
+    /** "Muhammad Wira Margono" -> "Wira": lewati awalan nama umum (sama dengan guessNick() di lib/lax.js). */
+    public static function callName(string $fullName): string
+    {
+        $words = preg_split('/\s+/', trim($fullName), -1, PREG_SPLIT_NO_EMPTY);
+        $prefix = '/^(muhammad|muhamad|muhammed|mohammad|mohamad|mohammed|moh|moch|muh|mhd|m)\.?$/i';
+
+        return (count($words) > 1 && preg_match($prefix, $words[0]) ? $words[1] : $words[0]) ?? '';
     }
 
     public static function rupiah(int $value): string
