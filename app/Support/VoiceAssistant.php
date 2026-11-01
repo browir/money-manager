@@ -40,6 +40,11 @@ class VoiceAssistant
 
     private const MAX_AMOUNT = 999_999_999_999;
 
+    /** Batas tunggu satu model & seluruh percobaan (fungsi Vercel berhenti di 60 detik). */
+    private const GEMINI_MODEL_SECONDS = 15;
+
+    private const GEMINI_TOTAL_SECONDS = 50;
+
     private const SYSTEM = <<<'TXT'
         Kamu adalah LAX (Ledger Assistant eXtraordinaire), asisten pribadi di aplikasi buku kas
         "Sisih". LAX berkarakter PEREMPUAN: anggun, hangat, ceria, suportif, sedikit jenaka, setia dan
@@ -206,19 +211,26 @@ class VoiceAssistant
     }
 
     /**
-     * Gemini lewat REST (tidak ada SDK PHP resmi). Model dicoba berurutan: 404 (model tidak
-     * tersedia untuk kunci ini) atau 429 (kuota model habis) -> model berikutnya. Tanpa jeda
-     * tunggu panjang: fungsi Vercel punya batas waktu.
+     * Gemini lewat REST (tidak ada SDK PHP resmi). Kegagalan apa pun pada satu model (kuota,
+     * model tidak ada, gangguan server, koneksi/timeout, jawaban tidak terbaca) -> model
+     * berikutnya; pesan error baru muncul setelah semua dicoba. Pengecualian: kunci API salah,
+     * karena semua model pasti gagal sama. Total waktu dibatasi: fungsi Vercel berhenti di 60 detik.
      *
      * @return array<string, mixed>
      */
     private function askGemini(string $prompt): array
     {
-        $lastStatus = null;
+        $deadline = microtime(true) + self::GEMINI_TOTAL_SECONDS;
+        $failure = null;
 
         foreach (config('services.gemini.models') as $model) {
+            $remaining = $deadline - microtime(true);
+            if ($remaining < 2) {
+                break;
+            }
+
             try {
-                $response = Http::timeout(25)
+                $response = Http::timeout(min(self::GEMINI_MODEL_SECONDS, (int) ceil($remaining)))
                     ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
                     ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
                         'systemInstruction' => ['parts' => [['text' => self::SYSTEM]]],
@@ -230,34 +242,53 @@ class VoiceAssistant
                         ],
                     ]);
             } catch (ConnectionException) {
-                throw new RuntimeException('Gagal terhubung ke Gemini. Periksa koneksi lalu coba lagi.');
-            }
-
-            if (in_array($response->status(), [404, 429], true)) {
-                $lastStatus = $response->status();
-                AiUsage::record('gemini', $model, 'assistant', $response->status() === 429 ? 'rate_limited' : 'error');
+                AiUsage::record('gemini', $model, 'assistant', 'error');
+                Log::warning('Gemini API gagal', ['model' => $model, 'status' => 'koneksi/timeout']);
+                $failure = 'Gagal terhubung ke Gemini. Periksa koneksi lalu coba lagi.';
 
                 continue;
             }
 
-            AiUsage::record('gemini', $model, 'assistant', $response->successful() ? 'ok' : 'error', AiUsage::geminiTokens($response->json('usageMetadata')));
+            $status = $response->status();
+            AiUsage::record('gemini', $model, 'assistant', $response->successful() ? 'ok' : ($status === 429 ? 'rate_limited' : 'error'), AiUsage::geminiTokens($response->json('usageMetadata')));
 
             if ($response->failed()) {
-                $reason = collect($response->json('error.details', []))->pluck('reason')->filter()->first();
-                Log::warning('Gemini API gagal', ['model' => $model, 'status' => $response->status(), 'reason' => $reason, 'message' => $response->json('error.message')]);
+                $details = collect($response->json('error.details', []));
+                $reason = $details->pluck('reason')->filter()->first();
+                Log::warning('Gemini API gagal', [
+                    'model' => $model,
+                    'status' => $status,
+                    'reason' => $reason,
+                    'quota' => $details->pluck('violations.0.quotaId')->filter()->first(),
+                    'message' => $response->json('error.message'),
+                ]);
 
-                throw new RuntimeException(in_array($reason, ['API_KEY_INVALID', 'API_KEY_SERVICE_BLOCKED'], true) || $response->status() === 403
-                    ? 'Kunci API Gemini tidak valid. Periksa GEMINI_API_KEY di server.'
-                    : 'Gemini sedang bermasalah. Coba lagi nanti.');
+                if (in_array($reason, ['API_KEY_INVALID', 'API_KEY_SERVICE_BLOCKED'], true)) {
+                    throw new RuntimeException('Kunci API Gemini tidak valid. Periksa GEMINI_API_KEY di server.');
+                }
+
+                // 404 tidak menimpa penyebab lain: yang perlu dibaca pengguna adalah kuota/gangguan.
+                $failure = match ($status) {
+                    404 => $failure ?? 'Model Gemini tidak tersedia untuk kunci ini. Periksa GEMINI_MODELS di server.',
+                    429 => 'Kuota Gemini habis untuk saat ini. Coba lagi nanti, atau catat manual dulu.',
+                    403 => 'Kunci API Gemini tidak valid. Periksa GEMINI_API_KEY di server.',
+                    default => 'Gemini sedang bermasalah. Coba lagi nanti.',
+                };
+
+                continue;
             }
 
             $candidate = $response->json('candidates.0') ?? [];
             $finish = $candidate['finishReason'] ?? null;
             if ($finish === 'MAX_TOKENS') {
-                throw new RuntimeException('Ucapan terlalu panjang. Coba pecah jadi beberapa bagian.');
+                $failure = 'Ucapan terlalu panjang. Coba pecah jadi beberapa bagian.';
+
+                continue;
             }
             if ($response->json('promptFeedback.blockReason') || in_array($finish, ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'], true)) {
-                throw new RuntimeException('Gemini tidak bisa memproses ucapan ini. Coba ucapkan dengan kalimat lain.');
+                $failure = 'Gemini tidak bisa memproses ucapan ini. Coba ucapkan dengan kalimat lain.';
+
+                continue;
             }
 
             $text = collect($candidate['content']['parts'] ?? [])->reject(fn ($p) => $p['thought'] ?? false)->pluck('text')->implode('');
@@ -267,12 +298,10 @@ class VoiceAssistant
                 return $data;
             }
 
-            throw new RuntimeException('Jawaban Gemini tidak bisa dibaca. Coba lagi.');
+            $failure = 'Jawaban Gemini tidak bisa dibaca. Coba lagi.';
         }
 
-        throw new RuntimeException($lastStatus === 429
-            ? 'Kuota Gemini habis untuk saat ini. Coba lagi nanti, atau catat manual dulu.'
-            : 'Model Gemini tidak tersedia untuk kunci ini. Periksa GEMINI_MODELS di server.');
+        throw new RuntimeException($failure ?? 'Model Gemini tidak tersedia untuk kunci ini. Periksa GEMINI_MODELS di server.');
     }
 
     /** @return array<string, mixed> */

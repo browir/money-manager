@@ -91,6 +91,49 @@ class AssistantTest extends TestCase
             && str_contains($r['contents'][0]['parts'][0]['text'], 'bakso 25 ribu'));
     }
 
+    public function test_gemini_gangguan_apa_pun_pindah_ke_model_berikutnya(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji', 'services.gemini.models' => ['sibuk', 'putus', 'ngawur', 'panjang', 'sehat']]);
+        $answer = ['reply' => 'Halo', 'items' => [], 'account_actions' => [], 'encouragement' => null, 'unclear' => null];
+        Http::fake([
+            '*/models/sibuk:generateContent' => Http::response(['error' => ['code' => 503]], 503),
+            '*/models/putus:generateContent' => Http::failedConnection(),
+            '*/models/ngawur:generateContent' => Http::response(['candidates' => [['finishReason' => 'STOP', 'content' => ['parts' => [['text' => 'bukan json']]]]]]),
+            '*/models/panjang:generateContent' => Http::response(['candidates' => [['finishReason' => 'MAX_TOKENS']]]),
+            '*/models/sehat:generateContent' => Http::response(['candidates' => [['finishReason' => 'STOP', 'content' => ['parts' => [['text' => json_encode($answer)]]]]]]),
+        ]);
+
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'halo'])
+            ->assertOk()->assertJsonPath('reply', 'Halo');
+    }
+
+    public function test_gemini_error_baru_muncul_setelah_semua_model_dicoba(): void
+    {
+        config(['services.gemini.key' => 'kunci-uji', 'services.gemini.models' => ['model-a', 'model-b', 'model-c']]);
+        Http::fake([
+            '*/models/model-a:generateContent' => Http::response([], 429),
+            '*/models/model-b:generateContent' => Http::response([], 503),
+            '*/models/model-c:generateContent' => Http::response([], 404),
+        ]);
+
+        // 404 di model terakhir tidak menutupi penyebab yang lebih berguna.
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])
+            ->assertStatus(502)->assertJsonPath('message', 'Gemini sedang bermasalah. Coba lagi nanti.');
+
+        Http::assertSentCount(3);
+    }
+
+    public function test_gemini_kunci_salah_tidak_mencoba_model_lain(): void
+    {
+        config(['services.gemini.key' => 'salah', 'services.gemini.models' => ['model-a', 'model-b']]);
+        Http::fake(['*' => Http::response(['error' => ['code' => 400, 'details' => [['reason' => 'API_KEY_INVALID']]]], 400)]);
+
+        $this->actingAs($this->user)->postJson(route('assistant.parse'), ['text' => 'bakso'])
+            ->assertStatus(502)->assertJsonPath('message', 'Kunci API Gemini tidak valid. Periksa GEMINI_API_KEY di server.');
+
+        Http::assertSentCount(1);
+    }
+
     public function test_gemini_kunci_salah_dan_kuota_habis_diberi_pesan_jelas(): void
     {
         config(['services.gemini.key' => 'salah', 'services.gemini.models' => ['model-a']]);

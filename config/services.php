@@ -33,9 +33,10 @@ return [
     // selain itu Claude. Keduanya kosong = fitur suara mati. Kunci API terpisah dari langganan.
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
-        // Dicoba berurutan bila model tidak tersedia / kuotanya habis. Cek daftar di AI Studio.
+        // Dicoba berurutan sampai ada yang berhasil. Kuota gratis dihitung per model, tapi 3.5-flash
+        // saat ini ikut kuota 3.6-flash, jadi model lain tetap perlu ada. Cek daftar di AI Studio.
         'models' => array_values(array_filter(array_map('trim', explode(',',
-            env('GEMINI_MODELS') ?: 'gemini-3.6-flash,gemini-3.5-flash,gemini-2.5-flash-lite'
+            env('GEMINI_MODELS') ?: 'gemini-3.6-flash,gemini-3.5-flash,gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3-flash-preview,gemini-2.5-flash,gemini-3.1-pro-preview'
         )))),
         // Suara LAX (text-to-speech): SEMUA model suara dipakai bergantian (kuota dihitung per model).
         // Format "model:SuaraBawaan" — suara bawaan dipakai bila suara pilihan tidak ada di model itu.
