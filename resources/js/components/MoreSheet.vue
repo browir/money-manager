@@ -58,7 +58,7 @@ function voice() {
                 @click="voice"
             >
                 <span class="flex size-9 items-center justify-center rounded-xl bg-accent-soft text-accent-text"><Mic class="size-[18px]" /></span>
-                <span class="flex-1 text-[15px] font-medium">Asisten suara</span>
+                <span class="flex-1 text-[15px] font-medium">Panggil LAX</span>
                 <ChevronRight class="size-4 text-muted" />
             </button>
             <Link

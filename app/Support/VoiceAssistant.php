@@ -40,8 +40,10 @@ class VoiceAssistant
     private const MAX_AMOUNT = 999_999_999_999;
 
     private const SYSTEM = <<<'TXT'
-        Kamu asisten keuangan di aplikasi buku kas pribadi "Sisih": hangat, suportif, seperti teman
-        yang peduli, bukan menggurui. Pengguna berbicara bahasa
+        Kamu adalah LAX (Ledger Assistant eXtraordinaire), asisten pribadi di aplikasi buku kas
+        "Sisih". Kepribadianmu: hangat, ceria, suportif, sedikit jenaka, seperti sahabat yang peduli,
+        bukan menggurui. Sebut dirimu "LAX" atau "aku", panggil pengguna dengan "kamu" dan sesekali
+        dengan nama depannya. Pengguna berbicara bahasa
         Indonesia santai (kadang campur bahasa daerah/Inggris). Teksnya hasil pengenal suara, jadi
         bisa ada salah dengar atau angka yang ditulis sebagai kata. Kamu hanya MENGUSULKAN;
         pengguna akan meninjau dan mengonfirmasi sebelum apa pun disimpan.
@@ -140,7 +142,8 @@ class VoiceAssistant
             ->toBase()->first();
         $today = CarbonImmutable::today();
 
-        $context = $this->context($accounts, $categories, $today, $period, $totals);
+        $context = 'Nama pengguna: '.Str::before(trim($user->name), ' ')."\n"
+            .$this->context($accounts, $categories, $today, $period, $totals);
         $result = $this->ask($context."\n\nUcapan pengguna:\n".$text);
 
         return $this->sanitize($result, $accounts, $categories, $today, $defaultAccountId);

@@ -6,6 +6,7 @@ import {
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { route } from 'ziggy-js';
+import LaxOrb from '@/components/LaxOrb.vue';
 import IconTile from '@/components/ui/IconTile.vue';
 import Money from '@/components/ui/Money.vue';
 import Sheet from '@/components/ui/Sheet.vue';
@@ -15,12 +16,15 @@ import { useLedger } from '@/composables/useLedger';
 import { openQuickAdd, useQuickAdd } from '@/composables/useQuickAdd';
 import { primeSpeech, speak, stopSpeaking, toggleSpeech, useSpeech } from '@/composables/useSpeech';
 import { closeVoice, useVoice } from '@/composables/useVoice';
+import { pauseWakeWord, resumeWakeWord } from '@/composables/useWakeWord';
 import { dayLabel } from '@/lib/dates';
 import { postJson } from '@/lib/http';
 import { ACCOUNT_TYPES, accountIcon, categoryIcon } from '@/lib/icons';
+import { ANSWER_LINES, LAX, PROPOSAL_LINES, doneLine, greeting, pick, wakeLine } from '@/lib/lax';
 
 /* ---------------------------------------------------------------
-   Asisten suara: bicara (atau ketik) bebas → AI (Gemini/Claude) mengurai jadi
+   LAX (Ledger Assistant eXtraordinaire), asisten suara Sisih:
+   bicara (atau ketik) bebas → AI (Gemini/Claude) mengurai jadi
    jawaban + usulan transaksi + usulan perubahan akun → pengguna meninjau →
    jalankan. Server memvalidasi di kedua langkah; AI tidak pernah menyimpan sendiri.
    --------------------------------------------------------------- */
@@ -38,6 +42,8 @@ const speech = useSpeech();
 const drafts = ref([]); // usulan transaksi
 const actions = ref([]); // usulan perubahan akun
 const unclear = ref('');
+const hello = ref(''); // sapaan pembuka LAX
+const firstName = computed(() => (page.props.auth.user?.name ?? '').split(' ')[0]);
 const saving = ref(false);
 const generalError = ref('');
 
@@ -116,12 +122,51 @@ watch(
         text.value = '';
         error.value = '';
         clearResult();
+
+        // "Hei LAX, catat bakso 25 ribu": perintah sudah terucap, langsung proses.
+        if (state.prefill) {
+            hello.value = '';
+            text.value = state.prefill;
+            process();
+            return;
+        }
+
+        // Sapaan: berdasarkan waktu untuk pertama kali di sesi ini, lalu jawaban singkat bila dipanggil.
+        let firstTime = false;
+        try {
+            firstTime = !sessionStorage.getItem('sisih:lax-greeted');
+            sessionStorage.setItem('sisih:lax-greeted', '1');
+        } catch {
+            // sessionStorage diblokir: anggap bukan yang pertama.
+        }
+        hello.value = firstTime || !state.wake ? greeting(firstName.value) : wakeLine(firstName.value);
+        // Dibuka dengan ketukan: sapa sekali per sesi. Dipanggil "Hei LAX": selalu menjawab, lalu langsung mendengarkan.
+        if (state.wake) speak(hello.value, { onEnd: listenSoon });
+        else if (firstTime) speak(hello.value);
     },
 );
+
+/* Setelah menyapa karena dipanggil: mulai mendengarkan perintah tanpa perlu mengetuk. */
+function listenSoon() {
+    setTimeout(() => {
+        if (state.open && phase.value === 'input' && !text.value && !listening.value) startListening();
+    }, 250);
+}
+// Mikrofon hanya bisa dipakai satu pengenal suara: pendengar "Hei LAX" istirahat selama sheet terbuka.
+let wakePaused = false;
 watch(
     () => state.open,
     (open) => {
-        if (!open) recognizer?.abort();
+        if (open && !wakePaused) {
+            wakePaused = true;
+            pauseWakeWord();
+        } else if (!open) {
+            recognizer?.abort();
+            if (wakePaused) {
+                wakePaused = false;
+                resumeWakeWord();
+            }
+        }
     },
 );
 
@@ -146,7 +191,7 @@ async function process() {
     }
     const spoken = text.value.trim();
     if (!navigator.onLine) {
-        error.value = 'Sedang offline. Asisten butuh internet.';
+        error.value = `Sedang offline. ${LAX.name} butuh internet.`;
         return;
     }
     error.value = '';
@@ -185,7 +230,7 @@ async function process() {
     if (hasProposals.value || reply.value) {
         phase.value = 'review';
         // Nominal tidak pernah dibacakan: jawaban berangka cukup tampil di layar.
-        speak(hasProposals.value ? 'Sudah kusiapkan. Cek dulu ya, lalu tekan jalankan.' : joinSpeech(['Jawabannya ada di layar.', encouragement.value]));
+        speak(hasProposals.value ? pick(PROPOSAL_LINES) : joinSpeech([pick(ANSWER_LINES), encouragement.value]));
     } else {
         phase.value = 'input';
         error.value = unclear.value || 'Tidak ada yang bisa dikerjakan dari ucapan itu. Coba sebutkan apa dan berapa.';
@@ -211,9 +256,21 @@ function confirmation(items, accountActions) {
             unarchive: `akun ${name} sudah aktif lagi`,
         }[a.action]);
     }
-    const sentence = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} dan ${parts.at(-1)}` : parts[0];
-    return `Siap, ${sentence}.`;
+    return doneLine(parts);
 }
+
+/* Keadaan orb LAX. */
+const orbState = computed(() =>
+    listening.value ? 'listening' : phase.value === 'loading' ? 'thinking' : speech.speaking.value ? 'speaking' : 'idle',
+);
+const status = computed(
+    () =>
+        ({
+            listening: `${LAX.name} mendengarkan… ketuk untuk berhenti`,
+            thinking: `${LAX.name} sedang berpikir…`,
+            speaking: `${LAX.name} berbicara…`,
+        })[orbState.value] ?? (text.value ? 'Ketuk untuk menambah ucapan' : 'Ketuk lalu bicara: catat, atur akun, atau tanya'),
+);
 
 /* ---- Tampilan usulan transaksi ---- */
 const TYPE_LABEL = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer' };
@@ -352,16 +409,20 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
 </script>
 
 <template>
-    <Sheet :open="state.open && voiceAvailable" title="Asisten" @close="closeVoice">
+    <Sheet :open="state.open && voiceAvailable" :title="LAX.name" @close="closeVoice">
         <template #header>
             <div class="flex w-full items-center justify-between gap-3">
-                <h2 class="flex-1 text-[17px] font-semibold tracking-tight">Asisten</h2>
+                <LaxOrb :state="orbState" :size="34" />
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-[17px] leading-tight font-bold tracking-[0.06em]">{{ LAX.name }}</h2>
+                    <p class="truncate text-tiny text-muted">{{ LAX.full }}</p>
+                </div>
                 <button
                     v-if="speech.supported"
                     type="button"
                     class="icon-btn"
-                    aria-label="Atur suara asisten"
-                    title="Atur suara asisten"
+                    aria-label="Atur suara LAX"
+                    title="Atur suara LAX"
                     @click="closeVoice(), router.visit(route('settings') + '#suara-asisten')"
                 >
                     <SlidersHorizontal class="size-[18px]" />
@@ -371,8 +432,8 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
                     type="button"
                     class="icon-btn -mr-2"
                     :aria-pressed="speech.enabled.value"
-                    :aria-label="speech.enabled.value ? 'Matikan suara asisten' : 'Nyalakan suara asisten'"
-                    :title="speech.enabled.value ? 'Suara asisten menyala' : 'Suara asisten mati'"
+                    :aria-label="speech.enabled.value ? 'Matikan suara LAX' : 'Nyalakan suara LAX'"
+                    :title="speech.enabled.value ? 'Suara LAX menyala' : 'Suara LAX mati'"
                     @click="toggleSpeech"
                 >
                     <Volume2 v-if="speech.enabled.value" class="size-[18px]" />
@@ -382,22 +443,30 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
         </template>
         <!-- Langkah 1: bicara / ketik -->
         <div v-if="phase !== 'review'" class="pb-2">
-            <div v-if="Recognition" class="flex flex-col items-center pt-2 pb-5">
+            <div class="flex flex-col items-center pt-3 pb-4">
                 <button
+                    v-if="Recognition"
                     type="button"
-                    class="relative flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-(--hero-from) to-(--hero-to) text-white shadow-[0_14px_30px_-12px_var(--hero-from)] transition active:scale-95 disabled:opacity-50"
-                    :aria-label="listening ? 'Berhenti merekam' : 'Mulai bicara'"
+                    class="relative flex items-center justify-center rounded-full text-white transition active:scale-95 disabled:opacity-60"
+                    :aria-label="listening ? 'Berhenti merekam' : `Bicara dengan ${LAX.name}`"
                     :aria-pressed="listening"
                     :disabled="phase === 'loading'"
                     @click="listening ? stopListening() : startListening()"
                 >
-                    <span v-if="listening" class="absolute inset-0 animate-ping rounded-full bg-(--hero-to) opacity-40" aria-hidden="true" />
-                    <Square v-if="listening" class="relative size-6 fill-current" />
-                    <Mic v-else class="relative size-8" :stroke-width="2" />
+                    <LaxOrb :state="orbState" :size="104" />
+                    <Square v-if="listening" class="absolute size-6 fill-current drop-shadow" />
+                    <Mic v-else-if="phase !== 'loading'" class="absolute size-8 drop-shadow" :stroke-width="2" />
                 </button>
-                <p class="mt-3 text-center text-sm font-medium" :class="listening ? 'text-accent-text' : 'text-ink-2'">
-                    {{ listening ? 'Mendengarkan… ketuk untuk berhenti' : text ? 'Ketuk untuk menambah ucapan' : 'Ketuk lalu bicara: catat, atur akun, atau tanya' }}
+                <LaxOrb v-else :state="orbState" :size="88" />
+                <p class="mt-4 text-center text-sm font-medium" :class="orbState === 'idle' ? 'text-ink-2' : 'text-accent-text'" aria-live="polite">
+                    {{ Recognition || orbState !== 'idle' ? status : `${LAX.name} siap membaca perintahmu` }}
                 </p>
+            </div>
+
+            <!-- Sapaan LAX -->
+            <div v-if="hello && phase === 'input' && !text" class="mb-4 flex items-end gap-2">
+                <LaxOrb :size="26" />
+                <p class="rounded-[18px] rounded-bl-md bg-accent-soft/80 px-3.5 py-2.5 text-[14px] leading-relaxed text-ink">{{ hello }}</p>
             </div>
 
             <label class="field-label" for="voice-text">{{ Recognition ? 'Yang terdengar (bisa diubah)' : 'Tulis perintahmu' }}</label>
@@ -437,7 +506,7 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
             <!-- Sedang diurai -->
             <div v-if="phase === 'loading'" class="mt-5" aria-live="polite">
                 <p class="mb-3 flex items-center gap-2 text-small font-medium text-accent-text">
-                    <Sparkles class="size-4 animate-pulse" /> {{ provider }} sedang membaca permintaanmu…
+                    <Sparkles class="size-4 animate-pulse" /> {{ LAX.name }} sedang berpikir bersama {{ provider }}…
                 </p>
                 <div v-for="n in 2" :key="n" class="mb-2 flex animate-pulse items-center gap-3 rounded-2xl border border-line p-3">
                     <span class="size-10 rounded-xl bg-sunken" />
@@ -450,24 +519,29 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
             </div>
 
             <p v-else class="mt-4 text-tiny leading-relaxed text-muted">
-                Teks dikirim ke {{ provider }}<template v-if="providerOwner"> ({{ providerOwner }})</template> bersama daftar akun, saldo &
-                kategorimu agar bisa dipahami. Tidak ada yang berubah sebelum kamu menekan tombol konfirmasi.
+                {{ LAX.name }} memakai {{ provider }}<template v-if="providerOwner"> ({{ providerOwner }})</template>: teksmu dikirim bersama daftar
+                akun, saldo & kategori agar bisa dipahami. Tidak ada yang berubah sebelum kamu menekan tombol konfirmasi.
             </p>
         </div>
 
         <!-- Langkah 2: jawaban & tinjau usulan -->
         <div v-else class="pb-2">
-            <div class="mb-3 flex items-start gap-2 rounded-2xl bg-sunken px-3.5 py-3">
-                <p class="min-w-0 flex-1 text-small leading-relaxed text-ink-2 italic">“{{ text.trim() }}”</p>
-                <button type="button" class="icon-btn -my-1 -mr-1.5 size-8 shrink-0" aria-label="Ulangi" title="Ulangi" @click="again">
+            <!-- Ucapanmu (kanan) -->
+            <div class="mb-3 flex items-end justify-end gap-1.5 pl-10">
+                <button type="button" class="icon-btn size-8 shrink-0" aria-label="Ulangi" title="Ulangi" @click="again">
                     <RotateCcw class="size-4" />
                 </button>
+                <p class="rounded-[18px] rounded-br-md bg-accent px-3.5 py-2.5 text-[14px] leading-relaxed text-accent-fg">{{ text.trim() }}</p>
             </div>
 
-            <div v-if="reply || encouragement" class="mb-3 flex items-start gap-2.5 rounded-2xl border border-accent/15 bg-accent-soft/70 px-3.5 py-3">
-                <Sparkles class="mt-0.5 size-4 shrink-0 text-accent-text" />
-                <div class="space-y-1.5">
+            <!-- Balasan LAX (kiri) -->
+            <div class="mb-3 flex items-end gap-2 pr-6">
+                <LaxOrb :state="speech.speaking.value ? 'speaking' : 'idle'" :size="26" />
+                <div class="space-y-1.5 rounded-[18px] rounded-bl-md bg-accent-soft/80 px-3.5 py-2.5">
                     <p v-if="reply" class="text-[15px] leading-relaxed text-ink">{{ reply }}</p>
+                    <p v-else-if="hasProposals" class="text-[14px] leading-relaxed text-ink">
+                        Ini yang {{ LAX.name }} siapkan. Cek dulu, buang yang tidak perlu, lalu jalankan.
+                    </p>
                     <p v-if="encouragement" class="text-small leading-relaxed text-ink-2">{{ encouragement }}</p>
                 </div>
             </div>
@@ -581,7 +655,7 @@ const providerOwner = computed(() => ({ Gemini: 'Google', Claude: 'Anthropic' })
                 {{ phase === 'loading' ? 'Memproses…' : 'Proses' }}
             </button>
             <button v-else-if="!hasProposals" type="button" class="btn btn-quiet h-12 w-full text-[15px]" @click="again">
-                <Mic class="size-4" /> Tanya atau perintah lagi
+                <Mic class="size-4" /> Bicara lagi dengan {{ LAX.name }}
             </button>
             <template v-else>
                 <button type="button" class="btn btn-primary h-12 w-full text-[15px]" :disabled="blocked || saving" @click="save">

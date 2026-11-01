@@ -10,7 +10,7 @@ import { computed, reactive, ref } from 'vue';
 const KEY = 'sisih:speak';
 const SETTINGS_KEY = 'sisih:voice';
 const supported = typeof window !== 'undefined' && 'speechSynthesis' in window;
-const SAMPLE = 'Halo, aku asisten Sisih. Semangat mencatat keuanganmu hari ini, ya!';
+const SAMPLE = 'Halo, aku LAX, asisten buku kasmu. Semangat mencatat keuangan hari ini, ya!';
 
 function read(key, fallback) {
     try {
@@ -29,6 +29,11 @@ function write(key, value) {
 }
 
 const enabled = ref(supported && read(KEY, 1) !== 0);
+// Sedang berbicara + teks yang diucapkan (untuk orb LAX & teks melayang).
+const speaking = ref(false);
+const caption = ref('');
+let current = null;
+let safety = null;
 const settings = reactive({ voiceURI: null, rate: 1, pitch: 1, ...read(SETTINGS_KEY, {}) });
 
 /* Daftar suara dimuat asinkron (Chrome mengisi setelah event voiceschanged). */
@@ -51,7 +56,7 @@ function currentVoice() {
 }
 
 export function useSpeech() {
-    return { enabled, supported, settings, indonesianVoices, currentVoice };
+    return { enabled, supported, settings, indonesianVoices, currentVoice, speaking, caption };
 }
 
 /** Nama suara yang ramah dibaca: "Microsoft Gadis Online (Natural) - Indonesian (Indonesia)" -> "Gadis (Natural)". */
@@ -86,8 +91,12 @@ export function primeSpeech() {
     window.speechSynthesis.speak(silent);
 }
 
-export function speak(text, { force = false } = {}) {
-    if (!supported || (!enabled.value && !force) || !text) return;
+/** onEnd dipanggil setelah selesai bicara, atau langsung bila suara mati (mis. lanjut mendengarkan). */
+export function speak(text, { force = false, onEnd = null } = {}) {
+    if (!supported || (!enabled.value && !force) || !text) {
+        onEnd?.();
+        return;
+    }
     const synth = window.speechSynthesis;
     synth.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
@@ -96,6 +105,24 @@ export function speak(text, { force = false } = {}) {
     if (voice) utterance.voice = voice;
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
+    const done = () => {
+        if (current !== utterance) return;
+        current = null;
+        speaking.value = false;
+        caption.value = '';
+        clearTimeout(safety);
+        onEnd?.();
+    };
+    utterance.onstart = () => {
+        speaking.value = true;
+        caption.value = text;
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    current = utterance;
+    // Sebagian browser tidak selalu memicu onend: tutup teks melayang paling lambat setelah ini.
+    clearTimeout(safety);
+    safety = setTimeout(done, 4000 + text.length * 90 / settings.rate);
     synth.speak(utterance);
 }
 
@@ -105,5 +132,9 @@ export function previewVoice() {
 }
 
 export function stopSpeaking() {
-    if (supported) window.speechSynthesis.cancel();
+    if (!supported) return;
+    current = null;
+    speaking.value = false;
+    caption.value = '';
+    window.speechSynthesis.cancel();
 }

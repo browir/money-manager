@@ -1,9 +1,11 @@
 <script setup>
 import { Play } from 'lucide-vue-next';
 import { previewVoice, saveVoiceSettings, toggleSpeech, useSpeech, voiceLabel } from '@/composables/useSpeech';
+import { setWakeWord, useWakeWord } from '@/composables/useWakeWord';
 
 /* Pengaturan suara asisten: suara perangkat yang dipakai, kecepatan, nada. */
 const { enabled, settings, indonesianVoices, currentVoice } = useSpeech();
+const wake = useWakeWord();
 const isApple = typeof navigator !== 'undefined' && /iPhone|iPad|Mac/.test(navigator.userAgent);
 
 function pick(voiceURI) {
@@ -16,20 +18,49 @@ function pick(voiceURI) {
     <section id="suara-asisten" class="card scroll-mt-6 p-5">
         <div class="mb-4 flex items-center justify-between gap-3">
             <div>
-                <h2 class="section-title">Suara asisten</h2>
-                <p class="mt-0.5 text-small text-muted">Membacakan konfirmasi & semangat, tanpa menyebut nominal.</p>
+                <h2 class="section-title">LAX</h2>
+                <p class="mt-0.5 text-small text-muted">Ledger Assistant eXtraordinaire · suara balasan tanpa menyebut nominal.</p>
             </div>
             <button
                 type="button"
                 role="switch"
                 :aria-checked="enabled"
-                aria-label="Bacakan balasan asisten"
+                aria-label="Bacakan balasan LAX"
                 class="relative h-7 w-12 shrink-0 rounded-full transition-colors"
                 :class="enabled ? 'bg-accent' : 'bg-line-strong'"
                 @click="toggleSpeech"
             >
                 <span class="absolute top-1 left-1 size-5 rounded-full bg-surface shadow transition-transform duration-200 ease-out-soft" :class="enabled && 'translate-x-5'" />
             </button>
+        </div>
+
+        <!-- Kata panggil -->
+        <div v-if="wake.supported" class="mb-5 rounded-2xl border border-line p-3.5">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[15px] font-medium">Panggil dengan “Hei LAX”</p>
+                    <p class="text-small text-muted">
+                        {{ wake.blocked.value || (wake.enabled.value ? (wake.listening.value ? 'Siaga: LAX mendengarkan' : wake.needsTap.value ? 'Ketuk layar sekali agar LAX siaga' : 'Menyiapkan…') : 'Mati') }}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="wake.enabled.value"
+                    aria-label="Panggil dengan Hei LAX"
+                    class="relative h-7 w-12 shrink-0 rounded-full transition-colors"
+                    :class="wake.enabled.value ? 'bg-accent' : 'bg-line-strong'"
+                    @click="setWakeWord(!wake.enabled.value)"
+                >
+                    <span class="absolute top-1 left-1 size-5 rounded-full bg-surface shadow transition-transform duration-200 ease-out-soft" :class="wake.enabled.value && 'translate-x-5'" />
+                </button>
+            </div>
+            <p class="mt-2.5 text-small leading-relaxed text-muted">
+                Selama Sisih terbuka di layar, mikrofon aktif menunggu kata panggil (berhenti saat aplikasi diminimalkan; ada penanda
+                “Hei LAX” di layar). Suara diproses layanan pengenal suara browser, misalnya Google di Chrome. Coba ucapkan
+                “Hei LAX” atau langsung “Hei LAX, catat bakso 25 ribu”. Paling andal di Chrome/Edge; di Android mungkin terdengar bunyi
+                “bip” saat LAX mulai mendengarkan ulang.
+            </p>
         </div>
 
         <div class="flex flex-col gap-4" :class="!enabled && 'opacity-60'">

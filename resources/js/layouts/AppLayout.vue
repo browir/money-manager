@@ -4,6 +4,8 @@ import { Home, Layers, List, LogOut, Moon, MoreHorizontal, Plus, Repeat, Search,
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { route } from 'ziggy-js';
 import CommandPalette from '@/components/CommandPalette.vue';
+import LaxCaption from '@/components/LaxCaption.vue';
+import LaxWake from '@/components/LaxWake.vue';
 import MoreSheet from '@/components/MoreSheet.vue';
 import OfflineBar from '@/components/OfflineBar.vue';
 import PullToRefresh from '@/components/PullToRefresh.vue';
@@ -12,6 +14,8 @@ import TransactionSheet from '@/components/TransactionSheet.vue';
 import VoiceSheet from '@/components/VoiceSheet.vue';
 import Toaster from '@/components/ui/Toaster.vue';
 import { openQuickAdd } from '@/composables/useQuickAdd';
+import { openVoice } from '@/composables/useVoice';
+import { initWakeWord } from '@/composables/useWakeWord';
 import { useShortcuts } from '@/composables/useShortcuts';
 import { toggleTheme } from '@/composables/useTheme';
 import SisihMark from '@/components/ui/SisihMark.vue';
@@ -69,6 +73,12 @@ onMounted(() => {
     );
 });
 onUnmounted(() => stopListeners.forEach((stop) => stop()));
+
+/* "Hei LAX": aktif hanya bila dinyalakan di Pengaturan dan kunci AI terpasang. */
+onMounted(() => {
+    if (!page.props.features?.voice) return;
+    stopListeners.push(initWakeWord((rest) => openVoice({ wake: true, prefill: rest })));
+});
 
 // "g" lalu huruf untuk pindah halaman, gaya aplikasi desktop.
 let pendingG = 0;
@@ -238,6 +248,8 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 
         <TransactionSheet />
         <VoiceSheet />
+        <LaxWake />
+        <LaxCaption />
         <MoreSheet v-model:open="moreOpen" />
         <CommandPalette v-model:open="paletteOpen" />
         <Toaster />
